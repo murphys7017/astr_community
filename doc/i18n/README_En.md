@@ -40,6 +40,12 @@
 
 ---
 
+## Project Origin
+
+AstrBot Community is derived from the original project [ZTMYO/XiaoShiLiu](https://github.com/ZTMYO/XiaoShiLiu).
+
+This repository keeps the original full-stack foundation while adapting the branding, copywriting, category structure, and login flow for the AstrBot community scenario.
+
 > 📁 **Project Structure Explanation**: This project contains complete frontend and backend code. The frontend is located in the `vue3-project/` directory, and the backend is in the `express-project/` directory. For detailed structure, please refer to the [Project Structure Document](PROJECT_STRUCTURE_En.md).
 
 ## Project Demonstration

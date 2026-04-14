@@ -40,6 +40,12 @@
 
 ---
 
+## 项目来源
+
+AstrBot Community 基于原项目 [ZTMYO/XiaoShiLiu](https://github.com/ZTMYO/XiaoShiLiu) 二次改造而来。
+
+当前仓库在保留原项目前后端基础能力的前提下，结合 AstrBot 社区场景进行了品牌、文案、分类结构与登录流程等方面的调整。
+
 > 📁 **项目结构说明**：本项目包含完整的前后端代码，前端位于 `vue3-project/` 目录，后端位于 `express-project/` 目录。详细结构请查看 [项目结构文档](./doc/PROJECT_STRUCTURE.md)。
 
 ## 项目展示
