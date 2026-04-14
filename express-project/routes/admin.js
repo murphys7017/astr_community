@@ -740,7 +740,7 @@ router.put('/posts-audit/:id/approve', adminAuth, async (req, res) => {
 
         for (const mentionedUser of mentionedUsers) {
           try {
-            // 根据小石榴号查找用户的自增ID
+            // 根据 AstrBot ID查找用户的自增ID
             const [userRows] = await pool.execute('SELECT id FROM users WHERE user_id = ?', [mentionedUser.userId])
 
             if (userRows.length > 0) {
@@ -1443,7 +1443,7 @@ const followsCrudConfig = {
       const params = []
 
       if (req.query.follower_display_id) {
-        // 根据关注者小石榴号查找用户ID
+        // 根据关注者 AstrBot ID查找用户ID
         const userQuery = 'SELECT id FROM users WHERE COALESCE(user_id, CONCAT(\'user\', LPAD(id, 3, \'0\'))) = ?'
         const [userResult] = await pool.execute(userQuery, [req.query.follower_display_id])
         if (userResult.length > 0) {
@@ -1464,7 +1464,7 @@ const followsCrudConfig = {
       }
 
       if (req.query.following_display_id) {
-        // 根据被关注者小石榴号查找用户ID
+        // 根据被关注者 AstrBot ID查找用户ID
         const userQuery = 'SELECT id FROM users WHERE COALESCE(user_id, CONCAT(\'user\', LPAD(id, 3, \'0\'))) = ?'
         const [userResult] = await pool.execute(userQuery, [req.query.following_display_id])
         if (userResult.length > 0) {

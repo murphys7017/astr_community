@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This document provides a detailed introduction to the deployment process and configuration instructions for the XiaoShiLiu image and text community project.
+This document provides a detailed introduction to the deployment process and configuration instructions for AstrBot Community.
 
 ## Deployment Methods
 
@@ -9,7 +9,7 @@ The project supports two deployment methods:
 1. **Docker One-Click Deployment** (recommended) - Simple and quick, suitable for production environments
 2. **Traditional Deployment** - Manual configuration, suitable for development environments
 
-> 💡 **BT-Panel Deployment**: If you are using BT-Panel (宝塔面板), you can refer to this detailed tutorial with screenshots: [Complete Tutorial for Deploying XiaoShiLiu with BT-Panel](https://www.sakuraidc.cc/forum-post/3116.html)
+> 💡 **BT-Panel Deployment**: If you are using BT-Panel (宝塔面板), you can refer to this detailed tutorial with screenshots: [BT-Panel deployment tutorial](https://www.sakuraidc.cc/forum-post/3116.html)
 
 ---
 
@@ -113,7 +113,7 @@ SMTP_PASSWORD=your_email_password
 # Sender email
 EMAIL_FROM=your_email@example.com
 # Sender name
-EMAIL_FROM_NAME=XiaoShiLiu Campus Community
+EMAIL_FROM_NAME=AstrBot Community
 
 # IP Location Query Configuration
 # Primary API URL
@@ -291,7 +291,7 @@ SMTP_PASSWORD=your_email_password
 # Sender Email
 EMAIL_FROM=your_email@example.com
 # Sender Name
-EMAIL_FROM_NAME=XiaoShiLiu Campus Community
+EMAIL_FROM_NAME=AstrBot Community
 
 # IP Location Query Configuration
 # Primary API URL
@@ -314,7 +314,7 @@ VITE_API_BASE_URL=http://localhost:3001/api
 VITE_USE_REAL_API=true
 
 # Application Title
-VITE_APP_TITLE=Small Pear Graphic Community
+VITE_APP_TITLE=AstrBot Community
 ```
 
 #### Docker Environment Variable Description
@@ -504,7 +504,7 @@ The project supports email verification functionality, controlled by the `EMAIL_
    SMTP_USER=your_email@example.com
    SMTP_PASSWORD=your_email_password
    EMAIL_FROM=your_email@example.com
-   EMAIL_FROM_NAME=XiaoShiLiu Campus Community
+   EMAIL_FROM_NAME=AstrBot Community
    ```
 
 2. **Disable Email Feature** (`EMAIL_ENABLED=false`, default)
@@ -756,7 +756,7 @@ npm run dev
 VITE_API_BASE_URL=http://localhost:3001/api
 
 # Other frontend configurations
-VITE_APP_TITLE=Small石榴Image and Text Community
+VITE_APP_TITLE=AstrBot Community
 VITE_USE_REAL_API=true
 ```
 

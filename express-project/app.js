@@ -1,10 +1,7 @@
 /**
- * 小石榴校园图文社区 - Express后端服务
- * 
- * @author ZTMYO
- * @github https://github.com/ZTMYO
- * @description 基于Express框架的图文社区后端API服务
- * @version v1.3.2
+ * AstrBot Community - Express后端服务
+ *
+ * @description 基于Express框架的插件社区后端API服务
  * @license GPLv3
  */
 

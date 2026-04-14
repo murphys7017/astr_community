@@ -435,7 +435,7 @@ router.post('/', authenticateToken, async (req, res) => {
     console.log('📝 开始插入笔记到数据库...');
     const [result] = await pool.execute(
       'INSERT INTO posts (user_id, title, content, category_id, status, type) VALUES (?, ?, ?, ?, ?, ?)',
-      [userId, title || '', sanitizedContent, category_id || null, (status !== undefined ? status : 2).toString(), postType]
+      [userId, title || '', sanitizedContent, category_id || null, (status !== undefined ? status : 0).toString(), postType]
     );
 
     const postId = result.insertId;
@@ -523,7 +523,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
       for (const mentionedUser of mentionedUsers) {
         try {
-          // 根据小石榴号查找用户的自增ID
+          // 根据 AstrBot ID查找用户的自增ID
           const [userRows] = await pool.execute('SELECT id FROM users WHERE user_id = ?', [mentionedUser.userId]);
 
           if (userRows.length > 0) {
@@ -840,7 +840,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     // 更新笔记基本信息
     await pool.execute(
       'UPDATE posts SET title = ?, content = ?, category_id = ?, status = ? WHERE id = ?',
-      [title || '', sanitizedContent, category_id || null, (status !== undefined ? status : 2).toString(), postId.toString()]
+      [title || '', sanitizedContent, category_id || null, (status !== undefined ? status : 0).toString(), postId.toString()]
     );
 
     // 根据笔记类型处理媒体文件
@@ -997,7 +997,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
       // 删除不再需要的@通知
       for (const mentionedUserId of usersToRemoveNotification) {
         try {
-          // 根据小石榴号查找用户的自增ID
+          // 根据 AstrBot ID查找用户的自增ID
           const [userRows] = await pool.execute('SELECT id FROM users WHERE user_id = ?', [mentionedUserId]);
 
           if (userRows.length > 0) {
@@ -1019,7 +1019,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
       // 添加新的@通知
       for (const mentionedUserId of usersToAddNotification) {
         try {
-          // 根据小石榴号查找用户的自增ID
+          // 根据 AstrBot ID查找用户的自增ID
           const [userRows] = await pool.execute('SELECT id FROM users WHERE user_id = ?', [mentionedUserId]);
 
           if (userRows.length > 0) {

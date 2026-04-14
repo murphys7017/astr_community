@@ -19,7 +19,7 @@ router.get('/search', optionalAuth, async (req, res) => {
       return res.status(HTTP_STATUS.BAD_REQUEST).json({ code: RESPONSE_CODES.VALIDATION_ERROR, message: '请输入搜索关键词' });
     }
 
-    // 搜索用户：支持昵称和小石榴号搜索
+    // 搜索用户：支持昵称和AstrBot ID 搜索
     const [rows] = await pool.execute(
       `SELECT u.id, u.user_id, u.nickname, u.avatar, u.bio, u.location, u.follow_count, u.fans_count, u.like_count, u.created_at, u.verified,
               (SELECT COUNT(*) FROM posts WHERE user_id = u.id AND status = 0) as post_count
@@ -102,7 +102,7 @@ router.get('/search', optionalAuth, async (req, res) => {
 router.get('/:id/personality-tags', async (req, res) => {
   try {
     const userIdParam = req.params.id;
-    // 始终通过小石榴号查找用户信息
+    // 始终通过 AstrBot ID查找用户信息
     const query = 'SELECT gender, zodiac_sign, mbti, education, major, interests FROM users WHERE user_id = ?';
     const params = [userIdParam];
 
@@ -144,7 +144,7 @@ router.get('/:id/personality-tags', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const userIdParam = req.params.id;
-    // 只通过小石榴号(user_id)进行查找
+    // 只通过 AstrBot ID(user_id)进行查找
     const [rows] = await pool.execute(
       `SELECT u.id, u.user_id, u.nickname, u.avatar, u.bio, u.location, u.email, u.gender, u.zodiac_sign, u.mbti, u.education, u.major, u.interests, u.follow_count, u.fans_count, u.like_count, u.created_at, u.verified, uv.title as verified_title
        FROM users u
@@ -251,7 +251,7 @@ router.get('/:id/posts', optionalAuth, async (req, res) => {
     const sort = req.query.sort || 'created_at';
     const statusFilter = req.query.status; // 状态筛选参数
 
-    // 始终通过小石榴号查找对应的数字ID
+    // 始终通过 AstrBot ID查找对应的数字ID
     const [userRows] = await pool.execute('SELECT id FROM users WHERE user_id = ?', [userIdParam]);
     if (userRows.length === 0) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({ code: RESPONSE_CODES.NOT_FOUND, message: '用户不存在' });
@@ -381,7 +381,7 @@ router.get('/:id/collections', optionalAuth, async (req, res) => {
     const offset = (page - 1) * limit;
     const currentUserId = req.user ? req.user.id : null;
 
-    // 始终通过小石榴号查找对应的数字ID
+    // 始终通过 AstrBot ID查找对应的数字ID
     const [userRows] = await pool.execute('SELECT id FROM users WHERE user_id = ?', [userIdParam]);
     if (userRows.length === 0) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({ code: RESPONSE_CODES.NOT_FOUND, message: '用户不存在' });
@@ -477,7 +477,7 @@ router.get('/:id/likes', optionalAuth, async (req, res) => {
     const offset = (page - 1) * limit;
     const currentUserId = req.user ? req.user.id : null;
 
-    // 始终通过小石榴号查找对应的数字ID
+    // 始终通过 AstrBot ID查找对应的数字ID
     const [userRows] = await pool.execute('SELECT id FROM users WHERE user_id = ?', [userIdParam]);
     if (userRows.length === 0) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({ code: RESPONSE_CODES.NOT_FOUND, message: '用户不存在' });
@@ -572,7 +572,7 @@ router.post('/:id/follow', authenticateToken, async (req, res) => {
     const followerId = req.user.id;
 
     // 获取被关注用户的数字ID
-    // 始终通过小石榴号查找对应的数字ID
+    // 始终通过 AstrBot ID查找对应的数字ID
     const [userRows] = await pool.execute('SELECT id FROM users WHERE user_id = ?', [userIdParam]);
     if (userRows.length === 0) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({ code: RESPONSE_CODES.NOT_FOUND, message: '用户不存在' });
@@ -628,7 +628,7 @@ router.delete('/:id/follow', authenticateToken, async (req, res) => {
     const userIdParam = req.params.id;
     const followerId = req.user.id;
 
-    // 始终通过小石榴号查找对应的数字ID
+    // 始终通过 AstrBot ID查找对应的数字ID
     const [userRows] = await pool.execute('SELECT id FROM users WHERE user_id = ?', [userIdParam]);
     if (userRows.length === 0) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({ code: RESPONSE_CODES.NOT_FOUND, message: '用户不存在' });
@@ -674,7 +674,7 @@ router.get('/:id/follow-status', optionalAuth, async (req, res) => {
     const followerId = req.user ? req.user.id : null;
 
     // 获取用户的数字ID
-    // 始终通过小石榴号查找对应的数字ID
+    // 始终通过 AstrBot ID查找对应的数字ID
     const [userRows] = await pool.execute('SELECT id FROM users WHERE user_id = ?', [userIdParam]);
     if (userRows.length === 0) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({ code: RESPONSE_CODES.NOT_FOUND, message: '用户不存在' });
@@ -739,7 +739,7 @@ router.get('/:id/following', optionalAuth, async (req, res) => {
     const offset = (page - 1) * limit;
     const currentUserId = req.user ? req.user.id : null;
 
-    // 始终通过小石榴号查找对应的数字ID
+    // 始终通过 AstrBot ID查找对应的数字ID
     const [userRows] = await pool.execute('SELECT id FROM users WHERE user_id = ?', [userIdParam]);
     if (userRows.length === 0) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({ code: RESPONSE_CODES.NOT_FOUND, message: '用户不存在' });
@@ -835,7 +835,7 @@ router.get('/:id/followers', optionalAuth, async (req, res) => {
 
     console.log(`获取粉丝列表 - 用户ID: ${userIdParam}, 当前用户ID: ${currentUserId}`);
 
-    // 始终通过小石榴号查找对应的数字ID
+    // 始终通过 AstrBot ID查找对应的数字ID
     const [userRows] = await pool.execute('SELECT id FROM users WHERE user_id = ?', [userIdParam]);
     if (userRows.length === 0) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({ code: RESPONSE_CODES.NOT_FOUND, message: '用户不存在' });
@@ -925,7 +925,7 @@ router.get('/:id/mutual-follows', optionalAuth, async (req, res) => {
 
     console.log(`获取互关列表 - 用户ID: ${userIdParam}, 当前用户ID: ${currentUserId}`);
 
-    // 始终通过小石榴号查找对应的数字ID
+    // 始终通过 AstrBot ID查找对应的数字ID
     const [userRows] = await pool.execute('SELECT id FROM users WHERE user_id = ?', [userIdParam]);
     if (userRows.length === 0) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({ code: RESPONSE_CODES.NOT_FOUND, message: '用户不存在' });
@@ -1032,7 +1032,7 @@ router.get('/:id/stats', async (req, res) => {
     const userIdParam = req.params.id;
     console.log(`获取用户统计信息 - 用户ID: ${userIdParam}`);
 
-    // 通过小石榴号查找对应的数字ID
+    // 通过 AstrBot ID查找对应的数字ID
     const [userRows] = await pool.execute('SELECT id FROM users WHERE user_id = ?', [userIdParam]);
     if (userRows.length === 0) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({ code: RESPONSE_CODES.NOT_FOUND, message: '用户不存在' });
@@ -1094,7 +1094,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
     console.log(`用户更新资料 - 目标用户ID: ${userIdParam}, 当前用户ID: ${currentUserId}`);
 
-    // 始终通过小石榴号查找对应的数字ID
+    // 始终通过 AstrBot ID查找对应的数字ID
     const [userRows] = await pool.execute('SELECT id FROM users WHERE user_id = ?', [userIdParam]);
     if (userRows.length === 0) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({ code: RESPONSE_CODES.NOT_FOUND, message: '用户不存在' });
@@ -1209,7 +1209,7 @@ router.put('/:id/password', authenticateToken, async (req, res) => {
       return res.status(HTTP_STATUS.BAD_REQUEST).json({ code: RESPONSE_CODES.VALIDATION_ERROR, message: '新密码长度不能少于6位' });
     }
 
-    // 始终通过小石榴号查找对应的数字ID
+    // 始终通过 AstrBot ID查找对应的数字ID
     const [userRows] = await pool.execute('SELECT id FROM users WHERE user_id = ?', [userIdParam]);
     if (userRows.length === 0) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({ code: RESPONSE_CODES.NOT_FOUND, message: '用户不存在' });
@@ -1254,7 +1254,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const userIdParam = req.params.id;
     const currentUserId = req.user.id;
-    // 始终通过小石榴号查找对应的数字ID
+    // 始终通过 AstrBot ID查找对应的数字ID
     const [userRows] = await connection.execute('SELECT id FROM users WHERE user_id = ?', [userIdParam]);
     if (userRows.length === 0) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({ code: RESPONSE_CODES.NOT_FOUND, message: '用户不存在' });

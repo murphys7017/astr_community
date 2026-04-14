@@ -1,6 +1,6 @@
 # 部署指南
 
-本文件提供 XiaoShiLiu 圖文社區項目的部署流程及配置說明。
+本文件提供 AstrBot Community 項目的部署流程及配置說明。
 
 ## 部署方法
 
@@ -9,7 +9,7 @@
 1. **Docker 一鍵部署**（推薦）- 簡單快捷，適合生產環境
 2. **傳統部署** - 手動配置，適合開發環境
 
-> 💡 **寶塔面板部署**：如果您使用寶塔面板，可以參考這個詳細的圖文教程：[使用寶塔搭建小石榴圖文社區完整教程](https://www.sakuraidc.cc/forum-post/3116.html)
+> 💡 **寶塔面板部署**：如果您使用寶塔面板，可以參考這個詳細的圖文教程：[寶塔面板部署圖文教程](https://www.sakuraidc.cc/forum-post/3116.html)
 
 ---
 
@@ -116,7 +116,7 @@ SMTP_PASSWORD=your_email_password
 # 發件人郵箱
 EMAIL_FROM=your_email@example.com
 # 發件人名稱
-EMAIL_FROM_NAME=小石榴校園圖文社區
+EMAIL_FROM_NAME=AstrBot Community
 
 # IP屬地查詢配置
 # 主API地址
@@ -296,7 +296,7 @@ SMTP_PASSWORD=your_email_password
 # 發件人郵箱
 EMAIL_FROM=your_email@example.com
 # 發件人名稱
-EMAIL_FROM_NAME=小石榴校園圖文社區
+EMAIL_FROM_NAME=AstrBot Community
 ```
 
 #### 前端環境變數 (.env)
@@ -309,7 +309,7 @@ VITE_API_BASE_URL=http://localhost:3001/api
 VITE_USE_REAL_API=true
 
 # 應用程式標題
-VITE_APP_TITLE=Small Pear Graphic Community
+VITE_APP_TITLE=AstrBot Community
 ```
 
 #### Docker 環境變數說明
@@ -500,7 +500,7 @@ docker-compose exec backend ls -la /app/uploads
    SMTP_USER=your_email@example.com
    SMTP_PASSWORD=your_email_password
    EMAIL_FROM=your_email@example.com
-   EMAIL_FROM_NAME=小石榴校園圖文社區
+   EMAIL_FROM_NAME=AstrBot Community
    ```
 
 2. **禁用郵件功能** (`EMAIL_ENABLED=false`，預設)
@@ -751,7 +751,7 @@ npm run dev
 VITE_API_BASE_URL=http://localhost:3001/api
 
 # 其他前端配置
-VITE_APP_TITLE=Small石榴Image and Text Community
+VITE_APP_TITLE=AstrBot Community
 VITE_USE_REAL_API=true
 ```
 

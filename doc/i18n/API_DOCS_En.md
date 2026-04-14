@@ -1,7 +1,7 @@
-# Xiaoshiliu Image and Text Community API Documentation
+# AstrBot Community API Documentation
 
 ## Project Information
-- **Project Name**: Xiaoshiliu Image and Text Community
+- **Project Name**: AstrBot Community
 - **Version**: v1.3.2
 - **Base URL**: `http://localhost:3001`
 - **Database**: xiaoshiliu (MySQL)
@@ -77,7 +77,7 @@ General parameters for interfaces that support pagination:
     "user": {
       "id": 1,
       "user_id": "user_001",
-      "nickname": "Xiaoshiliu",
+      "nickname": "AstrBot",
       "avatar": "https://example.com/avatar.jpg",
       "bio": "This is a personal introduction",
       "location": "Beijing",
@@ -98,7 +98,7 @@ General parameters for interfaces that support pagination:
 **Request Parameters**:
 | Parameter | Type | Required | Description |
 |-----------|------|----------|------------|
-| user_id | string | Yes | Xiaoshiliu ID |
+| user_id | string | Yes | AstrBot ID |
 | password | string | Yes | Password |
 
 **Response Example**:
@@ -110,7 +110,7 @@ General parameters for interfaces that support pagination:
     "user": {
       "id": 1,
       "user_id": "xiaoshiliu123",
-      "nickname": "Xiaoshiliu User",
+      "nickname": "AstrBot User",
       "avatar": "http://example.com/avatar.jpg",
       "bio": "This is my personal introduction",
       "location": "Beijing",
@@ -550,7 +550,7 @@ General parameters for interfaces that support pagination:
   "message": "成功",
   "data": {
     "user_id": "user_001",
-    "nickname": "小石榴",
+    "nickname": "AstrBot",
     "total_posts": 10,
     "total_likes": 50,
     "total_comments": 30,
@@ -2510,7 +2510,7 @@ Administrator interfaces use JWT authentication:
 | page | int | No | Page number, default 1 |
 | limit | int | No | Number of items per page, default 20 |
 | keyword | string | No | Search keyword (title or content) |
-| user_display_id | string | No | Filter by author Xiaoshiliu number |
+| user_display_id | string | No | Filter by author AstrBot ID |
 | category_id | int/string | No | Category ID filter, pass "null" to filter uncategorized records |
 
 **Response Data**:
@@ -2522,7 +2522,7 @@ Administrator interfaces use JWT authentication:
 | type | int | Record type: 1-Image/Text, 2-Video |
 | category | string | Category name |
 | status | int | Record status: 2-Pending Review |
-| user_display_id | string | Author Xiaoshiliu number |
+| user_display_id | string | Author AstrBot ID |
 | nickname | string | Author nickname |
 | tags | array | Tag list |
 | images | array | Image URL list |

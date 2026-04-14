@@ -5,9 +5,9 @@
       <div class="about-header">
         <div class="header-content">
           <div class="logo-section">
-            <div class="about-logo"><img :src="logoUrl" alt="小石榴" /></div>
+            <div class="about-logo"><img :src="logoUrl" alt="AstrBot" /></div>
 
-            <h2 class="about-title">关于小石榴</h2>
+            <h2 class="about-title">关于AstrBot</h2>
           </div>
           <p class="version">v1.3.2</p>
         </div>
@@ -21,7 +21,7 @@
           <div class="intro-section">
             <h3>项目简介</h3>
             <p>
-              小石榴校园图文社区是一个面向开发者与学习者的开源示例项目，旨在提供从前端到后端的完整实践范本，帮助大家学习现代 Web 应用的架构设计、工程化与业务实现。
+              AstrBot Community 是一个 AstrBot 插件分享社区，为开发者提供插件分享、交流讨论、教程文档等服务。
             </p>
           </div>
           <div class="author-section">
@@ -93,7 +93,7 @@
             <h3>版权声明</h3>
             <div class="copyright-content">
               <p>
-                <strong>设计灵感：</strong>本校园图文社区的UI设计和交互体验参考了小红书平台，旨在为下载该开源项目的人员提供一个熟悉的项目体验。
+                <strong>设计灵感：</strong>本插件分享社区的UI设计和交互体验参考了小红书平台，旨在为下载该开源项目的人员提供一个熟悉的项目体验。
               </p>
               <p>
                 <strong>开源项目：</strong>本项目基于 GPLv3 协议开源，仅供学习交流使用，不用于商业用途。所有代码遵循 GPLv3 开源协议，欢迎技术交流与讨论。
@@ -105,7 +105,7 @@
           </div>
 
           <div class="about-footer">
-            <p>&copy; 2025 小石榴校园图文社区. Made with ❤️ by @ZTMYO</p>
+            <p>&copy; 2025 AstrBot插件分享社区. Made with ❤️ by @ZTMYO</p>
           </div>
         </div>
       </div>
@@ -123,7 +123,7 @@ const emit = defineEmits(['close'])
 const { lock, unlock } = useScrollLock()
 
 // 静态资源URL
-const logoUrl = new URL('@/assets/imgs/小石榴.png', import.meta.url).href
+const logoUrl = new URL('@/assets/imgs/AstrBot.png', import.meta.url).href
 const ztmyoUrl = new URL('@/assets/imgs/ztmyo.png', import.meta.url).href
 const liciUrl = new URL('@/assets/imgs/栗次元.ico', import.meta.url).href
 const xiaRouUrl = new URL('@/assets/imgs/夏柔.ico', import.meta.url).href
