@@ -1,11 +1,8 @@
 /**
- * 小石榴校园图文社区 - 应用配置文件
+ * AstrBot Community - 应用配置文件
  * 集中管理所有配置项
- * 
- * @author ZTMYO
- * @github https://github.com/ZTMYO
+ *
  * @description Express应用的核心配置管理
- * @version v1.3.2
  */
 
 const mysql = require('mysql2/promise');
@@ -131,7 +128,7 @@ const config = {
     // 发件人配置
     from: {
       email: process.env.EMAIL_FROM || '',
-      name: process.env.EMAIL_FROM_NAME || '小石榴校园图文社区'
+      name: process.env.EMAIL_FROM_NAME || 'AstrBot Community'
     }
   },
 
@@ -141,6 +138,14 @@ const config = {
     backupApi: process.env.IP_LOCATION_BACKUP_API || 'https://api.pearktrue.cn/api/ip/high',
     primaryTimeout: parseInt(process.env.IP_LOCATION_PRIMARY_TIMEOUT) || 10000,
     backupTimeout: parseInt(process.env.IP_LOCATION_BACKUP_TIMEOUT) || 5000
+  },
+
+  // GitHub OAuth 配置
+  github: {
+    clientId: process.env.GITHUB_CLIENT_ID || '',
+    clientSecret: process.env.GITHUB_CLIENT_SECRET || '',
+    redirectUri: process.env.GITHUB_REDIRECT_URI || 'http://localhost:3001/api/auth/github/callback',
+    scope: process.env.GITHUB_SCOPE || 'read:user user:email'
   }
 };
 

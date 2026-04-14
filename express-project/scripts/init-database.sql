@@ -1,13 +1,14 @@
--- 小石榴图文社区数据库初始化脚本
+-- AstrBot 插件社区数据库初始化脚本
 -- 创建数据库（如果不存在）
-CREATE DATABASE IF NOT EXISTS `xiaoshiliu` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE `xiaoshiliu`;
+CREATE DATABASE IF NOT EXISTS `astr_community` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE `astr_community`;
 
 -- 1. 用户表
 CREATE TABLE IF NOT EXISTS `users` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '用户ID',
+  `github_id` varchar(100) DEFAULT NULL COMMENT 'GitHub 用户ID',
   `password` varchar(255) DEFAULT NULL COMMENT '密码',
-  `user_id` varchar(50) NOT NULL COMMENT '小石榴号',
+  `user_id` varchar(50) NOT NULL COMMENT '用户号',
   `nickname` varchar(100) NOT NULL COMMENT '昵称',
   `email` varchar(100) DEFAULT NULL COMMENT '邮箱',
   `avatar` varchar(500) DEFAULT NULL COMMENT '头像URL',
@@ -29,6 +30,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `verified` tinyint(1) DEFAULT 0 COMMENT '认证状态：0-未认证，1-已认证',
   PRIMARY KEY (`id`),
   UNIQUE KEY `user_id` (`user_id`),
+  UNIQUE KEY `idx_github_id` (`github_id`),
   KEY `idx_user_id` (`user_id`),
   KEY `idx_email` (`email`),
   KEY `idx_created_at` (`created_at`)
@@ -46,7 +48,7 @@ CREATE TABLE IF NOT EXISTS `admin` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='管理员表';
 
 -- 3. 分类表
-CREATE TABLE categories (
+CREATE TABLE IF NOT EXISTS `categories` (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(50) NOT NULL UNIQUE COMMENT '分类名称',
     category_title VARCHAR(50) NULL COMMENT '分类英文标题，用于URL路径',
@@ -307,14 +309,26 @@ CREATE TABLE IF NOT EXISTS `user_ban` (
   CONSTRAINT `user_ban_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户封禁表';
 
+-- 插入 AstrBot 插件社区分类
+INSERT INTO `categories` (`name`, `category_title`) VALUES
+('插件分享', 'plugins'),
+('教程文档', 'tutorials'),
+('交流讨论', 'discussion'),
+('求助问答', 'help'),
+('功能建议', 'ideas'),
+('公告通知', 'announcements'),
+('开发日志', 'devlog'),
+('资源链接', 'resources'),
+('作品展示', 'showcase'),
+('其他', 'other')
+ON DUPLICATE KEY UPDATE `name` = VALUES(`name`);
+
 -- 插入默认管理员账户
 -- 密码: 123456
-INSERT INTO `admin` (`username`, `password`) VALUES 
+INSERT INTO `admin` (`username`, `password`) VALUES
 ('admin', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92')
 ON DUPLICATE KEY UPDATE `username` = VALUES(`username`);
 
--- 注意：默认数据插入请使用专门的数据生成脚本
-
 -- 数据库初始化完成
-SELECT '数据库初始化完成！' AS message;
-SELECT COUNT(*) AS table_count FROM information_schema.tables WHERE table_schema = 'xiaoshiliu';
+SELECT 'AstrBot 插件社区数据库初始化完成！' AS message;
+SELECT COUNT(*) AS table_count FROM information_schema.tables WHERE table_schema = 'astr_community';

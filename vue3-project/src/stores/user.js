@@ -267,6 +267,26 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
+  // 处理 GitHub OAuth 登录成功
+  const handleAuthSuccess = async (authData) => {
+    try {
+      // 保存 token 和用户信息
+      token.value = authData.tokens.access_token
+      refreshToken.value = authData.tokens.refresh_token
+      userInfo.value = authData.user
+
+      // 保存到 localStorage
+      localStorage.setItem('token', authData.tokens.access_token)
+      localStorage.setItem('refreshToken', authData.tokens.refresh_token)
+      localStorage.setItem('userInfo', JSON.stringify(authData.user))
+
+      return { success: true }
+    } catch (error) {
+      console.error('处理登录结果失败:', error)
+      throw error
+    }
+  }
+
   // 开始邮箱验证码倒计时
   const startEmailCodeCountdown = () => {
     emailCodeCountdown.value = 60
@@ -320,6 +340,9 @@ export const useUserStore = defineStore('user', () => {
     sendEmailCode,
     clearEmailCodeCountdown,
     bindEmail,
-    unbindEmail
+    unbindEmail,
+
+    // GitHub OAuth 相关
+    handleAuthSuccess
   }
 })

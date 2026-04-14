@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { HTTP_STATUS, RESPONSE_CODES, ERROR_MESSAGES } = require('../constants');
-const { pool, email: emailConfig } = require('../config/config');
+const { pool, email: emailConfig, github: githubConfig } = require('../config/config');
 const { generateAccessToken, generateRefreshToken, verifyToken } = require('../utils/jwt');
 const { authenticateToken } = require('../middleware/auth');
 const { getIPLocation, getRealIP } = require('../utils/ipLocation');
@@ -9,6 +9,7 @@ const { sendEmailCode } = require('../utils/email');
 const svgCaptcha = require('svg-captcha');
 const path = require('path');
 const fs = require('fs');
+const axios = require('axios');
 
 function isValidEmail(email) {
   if (typeof email !== 'string') return false;
@@ -120,9 +121,9 @@ router.get('/captcha', (req, res) => {
 // 检查用户ID是否已存在
 router.get('/check-user-id', async (req, res) => {
   try {
-    const { user_id } = req.query; // 前端传过来的小石榴号
+    const { user_id } = req.query; // 前端传过来的AstrBot ID
     if (!user_id) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({ code: RESPONSE_CODES.VALIDATION_ERROR, message: '请输入小石榴号' });
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({ code: RESPONSE_CODES.VALIDATION_ERROR, message: '请输入 AstrBot ID' });
     }
     // 查数据库是否已有该ID
     const [existingUser] = await pool.execute(
@@ -133,7 +134,7 @@ router.get('/check-user-id', async (req, res) => {
     res.json({
       code: RESPONSE_CODES.SUCCESS,
       data: { isUnique: existingUser.length === 0 },
-      message: existingUser.length > 0 ? '小石榴号已存在' : '小石榴号可用'
+      message: existingUser.length > 0 ? 'AstrBot ID 已存在' : 'AstrBot ID 可用'
     });
   } catch (error) {
     console.error('检查用户ID失败:', error);
@@ -547,11 +548,11 @@ router.post('/register', async (req, res) => {
     }
 
     if (user_id.length < 3 || user_id.length > 15) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({ code: RESPONSE_CODES.VALIDATION_ERROR, message: '小石榴号长度必须在3-15位之间' });
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({ code: RESPONSE_CODES.VALIDATION_ERROR, message: 'AstrBot ID 长度必须在3-15位之间' });
     }
 
     if (!/^[a-zA-Z0-9_]+$/.test(user_id)) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({ code: RESPONSE_CODES.VALIDATION_ERROR, message: '小石榴号只能包含字母、数字和下划线' });
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({ code: RESPONSE_CODES.VALIDATION_ERROR, message: 'AstrBot ID 只能包含字母、数字和下划线' });
     }
 
     if (nickname.length > 10) {
@@ -601,7 +602,7 @@ router.post('/register', async (req, res) => {
       [userId.toString()]
     );
 
-    console.log(`用户注册成功 - 用户ID: ${userId}, 小石榴号: ${userRows[0].user_id}`);
+    console.log(`用户注册成功 - 用户ID: ${userId}, AstrBot ID: ${userRows[0].user_id}`);
 
     res.json({
       code: RESPONSE_CODES.SUCCESS,
@@ -694,7 +695,7 @@ router.post('/login', async (req, res) => {
       }
     }
 
-    console.log(`用户登录成功 - 用户ID: ${user.id}, 小石榴号: ${user.user_id}`);
+    console.log(`用户登录成功 - 用户ID: ${user.id}, AstrBot ID: ${user.user_id}`);
 
     res.json({
       code: RESPONSE_CODES.SUCCESS,
@@ -1268,6 +1269,349 @@ router.post('/admin/logout', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('管理员登出失败:', error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
+  }
+});
+
+// ==================== GitHub OAuth 登录 ====================
+
+// 生成随机 state 用于防 CSRF
+const stateStore = new Map();
+
+// GitHub 授权重定向
+router.get('/github', (req, res) => {
+  try {
+    if (!githubConfig.clientId || !githubConfig.clientSecret) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        code: RESPONSE_CODES.VALIDATION_ERROR,
+        message: 'GitHub OAuth 未配置'
+      });
+    }
+
+    // 生成随机 state
+    const state = Date.now().toString(36) + Math.random().toString(36).substr(2);
+    stateStore.set(state, {
+      expires: Date.now() + 10 * 60 * 1000 // 10 分钟过期
+    });
+
+    // 清理过期的 state
+    for (const [key, value] of stateStore.entries()) {
+      if (Date.now() > value.expires) {
+        stateStore.delete(key);
+      }
+    }
+
+    // 构建 GitHub 授权 URL
+    const authUrl = new URL('https://github.com/login/oauth/authorize');
+    authUrl.searchParams.set('client_id', githubConfig.clientId);
+    authUrl.searchParams.set('redirect_uri', githubConfig.redirectUri);
+    authUrl.searchParams.set('scope', githubConfig.scope);
+    authUrl.searchParams.set('state', state);
+
+    res.json({
+      code: RESPONSE_CODES.SUCCESS,
+      data: {
+        authUrl: authUrl.toString()
+      },
+      message: 'success'
+    });
+  } catch (error) {
+    console.error('获取 GitHub 授权 URL 失败:', error);
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      code: RESPONSE_CODES.ERROR,
+      message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR
+    });
+  }
+});
+
+// GitHub 回调处理
+router.get('/github/callback', async (req, res) => {
+  try {
+    const { code, state } = req.query;
+
+    // 验证 state
+    const storedState = stateStore.get(state);
+    if (!storedState || Date.now() > storedState.expires) {
+      stateStore.delete(state);
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        code: RESPONSE_CODES.VALIDATION_ERROR,
+        message: '无效的 state 参数'
+      });
+    }
+    stateStore.delete(state);
+
+    if (!code) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        code: RESPONSE_CODES.VALIDATION_ERROR,
+        message: '缺少 code 参数'
+      });
+    }
+
+    // 1. 使用 code 换取 access_token
+    const tokenResponse = await axios.post('https://github.com/login/oauth/access_token', {
+      client_id: githubConfig.clientId,
+      client_secret: githubConfig.clientSecret,
+      code: code,
+      redirect_uri: githubConfig.redirectUri
+    }, {
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+
+    const accessToken = tokenResponse.data.access_token;
+    if (!accessToken) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        code: RESPONSE_CODES.VALIDATION_ERROR,
+        message: '获取 access_token 失败'
+      });
+    }
+
+    // 2. 使用 access_token 获取用户信息
+    const userResponse = await axios.get('https://api.github.com/user', {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    const githubUser = userResponse.data;
+    const githubId = githubUser.id.toString();
+
+    // 获取用户邮箱（如果没有公开邮箱）
+    let userEmail = githubUser.email;
+    if (!userEmail) {
+      try {
+        const emailResponse = await axios.get('https://api.github.com/user/emails', {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Accept': 'application/json'
+          }
+        });
+        const primaryEmail = emailResponse.data.find(e => e.primary && e.verified);
+        if (primaryEmail) {
+          userEmail = primaryEmail.email;
+        }
+      } catch (e) {
+        console.error('获取 GitHub 用户邮箱失败:', e.message);
+      }
+    }
+
+    // 3. 查找或创建用户
+    let [existingUsers] = await pool.execute(
+      'SELECT id, user_id, nickname, avatar, bio, location, follow_count, fans_count, like_count, is_active, gender, zodiac_sign, mbti, education, major, interests FROM users WHERE github_id = ?',
+      [githubId]
+    );
+
+    let user;
+    const userIP = getRealIP(req);
+    const userAgent = req.headers['user-agent'] || '';
+    let ipLocation;
+    try {
+      ipLocation = await getIPLocation(userIP);
+    } catch (error) {
+      ipLocation = '未知';
+    }
+
+    if (existingUsers.length > 0) {
+      // 用户已存在，更新最后登录时间
+      user = existingUsers[0];
+      await pool.execute(
+        'UPDATE users SET location = ?, last_login_at = NOW() WHERE id = ?',
+        [ipLocation, user.id.toString()]
+      );
+      user.location = ipLocation;
+    } else {
+      // 新用户，创建账号
+      // 生成唯一的 user_id (使用 GitHub login 作为基础，如重复则添加数字后缀)
+      let baseUserId = githubUser.login;
+      if (baseUserId.length < 3) baseUserId = baseUserId + '123';
+      if (baseUserId.length > 15) baseUserId = baseUserId.substring(0, 15);
+
+      // 移除非法字符，只保留字母、数字、下划线
+      baseUserId = baseUserId.replace(/[^a-zA-Z0-9_]/g, '_');
+
+      let userId = baseUserId;
+      let counter = 1;
+
+      while (true) {
+        const [checkUsers] = await pool.execute(
+          'SELECT id FROM users WHERE user_id = ?',
+          [userId]
+        );
+        if (checkUsers.length === 0) break;
+        // 如重复，尝试添加后缀
+        const suffix = counter.toString();
+        userId = baseUserId.substring(0, 15 - suffix.length) + suffix;
+        counter++;
+      }
+
+      // 昵称使用 GitHub name 或 login
+      let nickname = githubUser.name || githubUser.login;
+      if (nickname.length > 10) nickname = nickname.substring(0, 10);
+
+      // 头像使用 GitHub avatar
+      const avatar = githubUser.avatar_url || '';
+
+      // bio 使用 GitHub bio
+      const bio = githubUser.bio || '用户没有任何简介';
+
+      // 插入新用户
+      const [result] = await pool.execute(
+        `INSERT INTO users (github_id, user_id, nickname, email, avatar, bio, location, last_login_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+        [githubId, userId, nickname, userEmail || '', avatar, bio, ipLocation]
+      );
+
+      const newUserId = result.insertId;
+
+      // 获取创建的用户信息
+      const [newUserRows] = await pool.execute(
+        'SELECT id, user_id, nickname, avatar, bio, location, follow_count, fans_count, like_count, is_active, gender, zodiac_sign, mbti, education, major, interests FROM users WHERE id = ?',
+        [newUserId.toString()]
+      );
+      user = newUserRows[0];
+    }
+
+    // 4. 生成 JWT 令牌
+    const accessTokenJwt = generateAccessToken({ userId: user.id, user_id: user.user_id });
+    const refreshTokenJwt = generateRefreshToken({ userId: user.id, user_id: user.user_id });
+
+    // 5. 保存会话
+    await pool.execute('UPDATE user_sessions SET is_active = 0 WHERE user_id = ?', [user.id.toString()]);
+    await pool.execute(
+      'INSERT INTO user_sessions (user_id, token, refresh_token, expires_at, user_agent, is_active) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 7 DAY), ?, 1)',
+      [user.id.toString(), accessTokenJwt, refreshTokenJwt, userAgent]
+    );
+
+    // 处理 interests 字段
+    if (user.interests) {
+      try {
+        user.interests = typeof user.interests === 'string'
+          ? JSON.parse(user.interests)
+          : user.interests;
+      } catch (e) {
+        user.interests = null;
+      }
+    }
+
+    console.log(`GitHub 登录成功 - 用户ID: ${user.id}, GitHub ID: ${githubId}`);
+
+    // 返回 HTML 页面，通过 postMessage 将结果发送给父窗口，并重定向
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>登录成功</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    .container {
+      background: white;
+      padding: 40px;
+      border-radius: 16px;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    h1 { color: #333; margin-bottom: 16px; }
+    p { color: #666; font-size: 16px; }
+    .success-icon { font-size: 64px; margin-bottom: 16px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="success-icon">🎉</div>
+    <h1>登录成功！</h1>
+    <p>正在跳转...</p>
+  </div>
+  <script>
+    var authData = {
+      success: true,
+      data: {
+        user: ${JSON.stringify(user)},
+        tokens: {
+          access_token: "${accessTokenJwt}",
+          refresh_token: "${refreshTokenJwt}",
+          expires_in: 3600
+        }
+      }
+    };
+    // 尝试通过 postMessage 发送给 opener
+    if (window.opener) {
+      window.opener.postMessage({ type: 'github-auth', data: authData }, '*');
+      setTimeout(function() { window.close(); }, 500);
+    } else {
+      // 直接保存到 localStorage 并重定向
+      try {
+        localStorage.setItem('access_token', "${accessTokenJwt}");
+        localStorage.setItem('refresh_token', "${refreshTokenJwt}");
+        localStorage.setItem('user', JSON.stringify(authData.data.user));
+      } catch(e) {}
+      window.location.href = '/';
+    }
+  </script>
+</body>
+</html>`;
+
+    res.send(html);
+
+  } catch (error) {
+    console.error('GitHub 回调处理失败:', error.response?.data || error.message);
+    const errorHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>登录失败</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+    .container {
+      background: white;
+      padding: 40px;
+      border-radius: 16px;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    h1 { color: #333; margin-bottom: 16px; }
+    p { color: #666; font-size: 16px; }
+    .error-icon { font-size: 64px; margin-bottom: 16px; }
+    .btn {
+      display: inline-block;
+      margin-top: 24px;
+      padding: 12px 32px;
+      background: #f5576c;
+      color: white;
+      text-decoration: none;
+      border-radius: 24px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="error-icon">😕</div>
+    <h1>登录失败</h1>
+    <p>${error.response?.data?.message || error.message || '请稍后重试'}</p>
+    <a href="/" class="btn">返回首页</a>
+  </div>
+</body>
+</html>`;
+    res.send(errorHtml);
   }
 });
 

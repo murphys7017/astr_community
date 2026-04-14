@@ -8,526 +8,132 @@
 
       <div class="auth-content">
         <div class="auth-header">
-          <h2 class="auth-title">{{ isLoginMode ? '登录小石榴' : '注册小石榴' }}</h2>
-          <p class="auth-subtitle">{{ isLoginMode ? '欢迎回来！' : '加入我们，开始分享美好生活' }}</p>
+          <div class="logo-circle">
+            <svg viewBox="0 0 24 24" class="github-icon" fill="currentColor">
+              <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+            </svg>
+          </div>
+          <h2 class="auth-title">欢迎使用 AstrBot Community</h2>
+          <p class="auth-subtitle">使用 GitHub 账号登录即可开始</p>
         </div>
 
-        <form @submit.prevent="handleSubmit" class="auth-form" novalidate autocomplete="off">
-          <div class="form-group">
-            <label for="user_id" class="form-label">小石榴号</label>
-            <input type="text" id="user_id" v-model="formData.user_id" class="form-input"
-              :class="{ 'error': showErrors && errors.user_id }"
-              :placeholder="isLoginMode ? '请输入小石榴号' : '请输入小石榴号（3-15位字母数字下划线）'" maxlength="15"
-              autocomplete="off" @input="clearError('user_id')" />
-            <span v-if="showErrors && errors.user_id" class="error-message">{{ errors.user_id }}</span>
-          </div>
-
-          <div v-if="!isLoginMode" class="form-group">
-            <label for="nickname" class="form-label">昵称</label>
-            <input type="text" id="nickname" v-model="formData.nickname" class="form-input"
-              :class="{ 'error': showErrors && errors.nickname }" placeholder="请输入昵称（少于10位）" maxlength="10"
-              autocomplete="off" @input="clearError('nickname')" />
-            <span v-if="showErrors && errors.nickname" class="error-message">{{ errors.nickname }}</span>
-          </div>
-
-          <div class="form-group">
-            <label for="password" class="form-label">密码</label>
-            <input type="password" id="password" v-model="formData.password" class="form-input"
-              :class="{ 'error': showErrors && errors.password }" :placeholder="isLoginMode ? '请输入密码' : '请设置密码（6-20位）'"
-              maxlength="20" autocomplete="new-password" @input="clearError('password')" />
-            <span v-if="showErrors && errors.password" class="error-message">{{ errors.password }}</span>
-          </div>
-
-          <div v-if="!isLoginMode" class="form-group">
-            <label for="confirmPassword" class="form-label">确认密码</label>
-            <input type="password" id="confirmPassword" v-model="formData.confirmPassword" class="form-input"
-              :class="{ 'error': showErrors && errors.confirmPassword }" placeholder="请再次输入密码" maxlength="20"
-              autocomplete="new-password" @input="clearError('confirmPassword')" />
-            <span v-if="showErrors && errors.confirmPassword" class="error-message">{{ errors.confirmPassword }}</span>
-          </div>
-
-          <div v-if="!isLoginMode && emailEnabled" class="form-group">
-            <label for="email" class="form-label">邮箱</label>
-            <input type="email" id="email" v-model="formData.email" class="form-input"
-              :class="{ 'error': showErrors && errors.email }" placeholder="请输入邮箱地址" maxlength="100"
-              autocomplete="off" @input="clearError('email')" />
-            <span v-if="showErrors && errors.email" class="error-message">{{ errors.email }}</span>
-          </div>
-
-          <div v-if="!isLoginMode && emailEnabled" class="form-group">
-            <label for="emailCode" class="form-label">邮箱验证码</label>
-            <div class="form-input-with-button">
-              <input type="text" id="emailCode" v-model="formData.emailCode" class="form-input"
-                :class="{ 'error': showErrors && errors.emailCode }" placeholder="请输入邮箱验证码" maxlength="6"
-                autocomplete="one-time-code" @input="clearError('emailCode')" />
-              <button type="button" class="email-code-btn"
-                :disabled="userStore.isSendingEmailCode || userStore.emailCodeCountdown > 0 || !isEmailValid"
-                @click="sendEmailCode">
-                {{ userStore.emailCodeCountdown > 0 ? `${userStore.emailCodeCountdown}秒后重发` : (userStore.isSendingEmailCode ? '发送中...' : '获取验证码') }}
-              </button>
-            </div>
-            <span v-if="showErrors && errors.emailCode" class="error-message">{{ errors.emailCode }}</span>
-          </div>
-
-          <div v-if="submitError" class="submit-error">
-            {{ submitError }}
-          </div>
-
-          <div v-if="unifiedMessage" class="unified-message">
-            <SvgIcon name="alert" width="16" height="16" />
-            {{ unifiedMessage }}
-          </div>
-
-          <button type="submit" class="submit-btn" :disabled="isSubmitting" :class="{ 'loading': isSubmitting }">
-            <span v-if="isSubmitting" class="loading-spinner"></span>
-            {{ isSubmitting ? '加载中...' : (isLoginMode ? '登录' : '注册') }}
-          </button>
-        </form>
-
-        <div class="auth-switch">
-          <span class="switch-text">
-            {{ isLoginMode ? '还没有账号？' : '已有账号？' }}
-          </span>
-          <button type="button" class="switch-btn" @click="toggleMode">
-            {{ isLoginMode ? '立即注册' : '立即登录' }}
-          </button>
+        <div v-if="errorMessage" class="error-message-box">
+          {{ errorMessage }}
         </div>
 
-        <div v-if="isLoginMode && emailEnabled" class="forgot-password">
-          <button type="button" class="forgot-btn" @click="openResetPassword">
-            忘记密码？
-          </button>
+        <button class="github-login-btn" @click="handleGithubLogin" :disabled="isLoading">
+          <span v-if="isLoading" class="loading-spinner"></span>
+          <svg v-else viewBox="0 0 24 24" class="btn-github-icon" fill="currentColor">
+            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+          </svg>
+          <span>{{ isLoading ? '正在跳转...' : '使用 GitHub 登录' }}</span>
+        </button>
+
+        <div class="auth-footer">
+          <p class="footer-text">首次登录将自动创建账号</p>
         </div>
       </div>
     </div>
 
     <MessageToast v-if="showToast" :message="toastMessage" :type="toastType" @close="handleToastClose" />
-
-    <!-- 验证码模态框 -->
-    <CaptchaModal :show="showCaptchaModal" :captcha-svg="captchaSvg" v-model:captcha-text="formData.captchaText"
-      :is-loading="isLoadingCaptcha" @close="closeCaptchaModal" @refresh="refreshCaptcha"
-      @confirm="handleCaptchaConfirm" />
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import SvgIcon from '@/components/SvgIcon.vue'
 import MessageToast from '@/components/MessageToast.vue'
-import CaptchaModal from '@/components/modals/CaptchaModal.vue'
 import { useUserStore } from '@/stores/user.js'
 import { useScrollLock } from '@/composables/useScrollLock'
 
-const props = defineProps({
-  initialMode: {
-    type: String,
-    default: 'login',
-    validator: (value) => ['login', 'register'].includes(value)
-  }
-})
-
-const emit = defineEmits(['close', 'success', 'open-reset-password'])
+const emit = defineEmits(['close', 'success'])
 
 const userStore = useUserStore()
-
 const { lock, unlock } = useScrollLock()
 
-// 邮件功能是否启用
-const emailEnabled = ref(false)
-
 const isAnimating = ref(false)
-const isLoginMode = ref(props.initialMode === 'login')
-const isSubmitting = ref(false)
-const submitError = ref('')
-const unifiedMessage = ref('')
-
-const formData = reactive({
-  user_id: '',
-  nickname: '',
-  password: '',
-  confirmPassword: '',
-  email: '',
-  emailCode: '',
-  captchaText: ''
-})
-
-const errors = reactive({
-  user_id: '',
-  nickname: '',
-  password: '',
-  confirmPassword: '',
-  email: '',
-  emailCode: '',
-  captchaText: ''
-})
+const isLoading = ref(false)
+const errorMessage = ref('')
 
 const showToast = ref(false)
 const toastMessage = ref('')
 const toastType = ref('success')
-const showErrors = ref(false)
 
-// 验证码相关状态
-const captchaId = ref('')
-const captchaSvg = ref('')
-const showCaptchaModal = ref(false)
-const isLoadingCaptcha = ref(false)
+let authWindow = null
+let messageHandler = null
 
-// 计算属性：邮箱格式是否有效
-const isEmailValid = computed(() => {
-  return formData.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)
-})
+const handleGithubLogin = async () => {
+  if (isLoading.value) return
 
-const isFormValid = computed(() => {
-  if (isLoginMode.value) {
-    return formData.user_id.trim() && formData.password.trim() && !errors.user_id && !errors.password
-  } else {
-    const baseValid = formData.user_id.trim() && formData.nickname.trim() && formData.password.trim() && formData.confirmPassword.trim() && !errors.user_id && !errors.nickname && !errors.password && !errors.confirmPassword
-    if (emailEnabled.value) {
-      return baseValid && formData.email.trim() && formData.emailCode.trim() && !errors.email && !errors.emailCode
-    }
-    return baseValid
-  }
-})
+  isLoading.value = true
+  errorMessage.value = ''
 
-const validateUserId = async () => {
-  errors.user_id = ''
-
-  if (!formData.user_id.trim()) {
-    errors.user_id = '请输入小石榴号'
-    return
-  }
-
-  if (formData.user_id.length < 3 || formData.user_id.length > 15) {
-    errors.user_id = '小石榴号长度必须在3-15位之间'
-    return
-  }
-
-  if (!/^[a-zA-Z0-9_]+$/.test(formData.user_id)) {
-    errors.user_id = '小石榴号只能包含字母、数字和下划线'
-    return
-  }
-
-  // 注册模式下检查用户ID是否已存在
-  if (!isLoginMode.value) {
-    try {
-      const response = await fetch(`/api/auth/check-user-id?user_id=${encodeURIComponent(formData.user_id)}`)
-      const result = await response.json()
-
-      if (result.code === 200) {
-        if (!result.data.isUnique) {
-          errors.user_id = '小石榴号已存在'
-          return
-        }
-      } else {
-        console.error('检查用户ID失败:', result.message)
-      }
-    } catch (error) {
-      console.error('检查用户ID失败:', error)
-      // 网络错误时不阻止用户继续，让后端最终验证
-    }
-  }
-
-  errors.user_id = ''
-}
-
-const validateNickname = () => {
-  if (!formData.nickname.trim()) {
-    errors.nickname = '请输入昵称'
-  } else {
-    errors.nickname = ''
-  }
-}
-
-const validatePassword = () => {
-  if (!formData.password.trim()) {
-    errors.password = '请输入密码'
-  } else if (!isLoginMode.value && formData.password.length < 6) {
-    errors.password = '密码至少需要6位'
-  } else {
-    errors.password = ''
-  }
-}
-
-const validateConfirmPassword = () => {
-  if (!formData.confirmPassword.trim()) {
-    errors.confirmPassword = '请确认密码'
-  } else if (formData.password !== formData.confirmPassword) {
-    errors.confirmPassword = '两次输入的密码不一致'
-  } else {
-    errors.confirmPassword = ''
-  }
-}
-
-// 验证邮箱
-const validateEmail = () => {
-  if (!formData.email.trim()) {
-    errors.email = '请输入邮箱地址'
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-    errors.email = '请输入有效的邮箱地址'
-  } else {
-    errors.email = ''
-  }
-}
-
-// 验证邮箱验证码
-const validateEmailCode = () => {
-  if (!formData.emailCode.trim()) {
-    errors.emailCode = '请输入邮箱验证码'
-  } else if (formData.emailCode.length !== 6) {
-    errors.emailCode = '邮箱验证码长度为6位'
-  } else {
-    errors.emailCode = ''
-  }
-}
-
-const clearError = (field) => {
-  errors[field] = ''
-  submitError.value = ''
-  unifiedMessage.value = ''
-  showErrors.value = false
-}
-
-// 获取验证码
-const getCaptcha = async () => {
-  isLoadingCaptcha.value = true
   try {
-    const response = await fetch('/api/auth/captcha')
+    const response = await fetch('/api/auth/github')
     const result = await response.json()
-    if (result.code === 200) {
-      captchaId.value = result.data.captchaId
-      captchaSvg.value = result.data.captchaSvg
+
+    if (result.code !== 200) {
+      throw new Error(result.message || '获取 GitHub 授权链接失败')
     }
+
+    const authUrl = result.data.authUrl
+
+    // 打开弹窗
+    const width = 600
+    const height = 700
+    const left = window.screenLeft + (window.outerWidth - width) / 2
+    const top = window.screenTop + (window.outerHeight - height) / 2
+
+    authWindow = window.open(
+      authUrl,
+      'github-auth',
+      `width=${width},height=${height},left=${left},top=${top},location=yes,toolbar=no,menubar=no`
+    )
+
+    if (!authWindow) {
+      throw new Error('弹窗被浏览器拦截，请允许弹出窗口')
+    }
+
+    // 监听弹窗关闭
+    const checkWindowClosed = setInterval(() => {
+      if (authWindow && authWindow.closed) {
+        clearInterval(checkWindowClosed)
+        isLoading.value = false
+      }
+    }, 500)
+
   } catch (error) {
-    console.error('获取验证码失败:', error)
-  } finally {
-    isLoadingCaptcha.value = false
+    console.error('GitHub 登录失败:', error)
+    errorMessage.value = error.message || '登录失败，请稍后重试'
+    isLoading.value = false
   }
 }
 
-// 刷新验证码
-const refreshCaptcha = () => {
-  formData.captchaText = ''
-  getCaptcha()
-}
-
-// 打开验证码模态框
-const openCaptchaModal = () => {
-  showCaptchaModal.value = true
-  getCaptcha()
-}
-
-// 关闭验证码模态框
-const closeCaptchaModal = () => {
-  showCaptchaModal.value = false
-  formData.captchaText = ''
-  errors.captchaText = ''
-}
-
-// 验证码验证
-const validateCaptcha = () => {
-  if (!formData.captchaText.trim()) {
-    errors.captchaText = '请输入验证码'
-  } else {
-    errors.captchaText = ''
-  }
-}
-
-// 发送邮箱验证码
-const sendEmailCode = async () => {
-  // 验证邮箱格式
-  validateEmail()
-  if (errors.email) {
-    showErrors.value = true
-    return
-  }
-
-  try {
-    const response = await userStore.sendEmailCode({email:formData.email})
-    if (response.success) {
-      showToastMessage(response.message, 'success')
+// 监听来自弹窗的 postMessage
+const handleMessage = async (event) => {
+  if (event.data && event.data.type === 'github-auth') {
+    const authData = event.data.data
+    if (authData.success) {
+      // 保存 token 和用户信息
+      try {
+        await userStore.handleAuthSuccess(authData.data)
+        showToastMessage('登录成功！', 'success')
+        setTimeout(() => {
+          emit('success')
+          closeModal()
+          window.location.reload()
+        }, 500)
+      } catch (error) {
+        console.error('处理登录结果失败:', error)
+        errorMessage.value = '登录处理失败，请重试'
+      }
     } else {
-      unifiedMessage.value = response.message || '发送验证码失败'
+      errorMessage.value = authData.message || '登录失败'
     }
-  } catch (error) {
-    console.error('发送验证码失败:', error)
-    unifiedMessage.value = '网络错误，请稍后重试'
-  }
-}
-
-const resetForm = () => {
-  formData.user_id = ''
-  formData.nickname = ''
-  formData.password = ''
-  formData.confirmPassword = ''
-  formData.email = ''
-  formData.emailCode = ''
-  formData.captchaText = ''
-  errors.user_id = ''
-  errors.nickname = ''
-  errors.password = ''
-  errors.confirmPassword = ''
-  errors.email = ''
-  errors.emailCode = ''
-  errors.captchaText = ''
-  submitError.value = ''
-  showErrors.value = false
-  captchaId.value = ''
-  captchaSvg.value = ''
-  // 清除邮箱验证码倒计时
-  userStore.clearEmailCodeCountdown()
-}
-
-const toggleMode = () => {
-  isLoginMode.value = !isLoginMode.value
-  Object.keys(formData).forEach(key => {
-    formData[key] = ''
-  })
-  Object.keys(errors).forEach(key => {
-    errors[key] = ''
-  })
-  submitError.value = ''
-  unifiedMessage.value = ''
-  showErrors.value = false
-  captchaId.value = ''
-  captchaSvg.value = ''
-  showCaptchaModal.value = false
-}
-
-// 处理验证码确认
-const handleCaptchaConfirm = async () => {
-  // 邮件功能启用时才验证邮箱验证码
-  if (emailEnabled.value) {
-    validateEmailCode()
-    if (errors.emailCode) {
-      closeCaptchaModal()
-      showErrors.value = true
-      return
+    isLoading.value = false
+    if (authWindow && !authWindow.closed) {
+      authWindow.close()
     }
-  }
-
-  // 验证图形验证码
-  validateCaptcha()
-  if (errors.captchaText) {
-    return
-  }
-
-  // 验证码验证通过，执行注册
-  await performSubmit()
-}
-
-const handleSubmit = async () => {
-  unifiedMessage.value = ''
-  submitError.value = ''
-  showErrors.value = true
-
-  if (isLoginMode.value) {
-    const isUserIdEmpty = !formData.user_id.trim()
-    const isPasswordEmpty = !formData.password.trim()
-
-    if (isUserIdEmpty && isPasswordEmpty) {
-      return
-    }
-
-    if (isUserIdEmpty) {
-      unifiedMessage.value = '请输入小石榴号'
-      return
-    }
-
-    if (isPasswordEmpty) {
-      unifiedMessage.value = '请输入密码'
-      return
-    }
-
-    // 登录模式直接提交
-    await performSubmit()
-  } else {
-    // 注册模式：先验证表单，通过后打开验证码模态框
-    await validateUserId()
-    validatePassword()
-    validateNickname()
-    validateConfirmPassword()
-    if (emailEnabled.value) {
-      validateEmail()
-      validateEmailCode()
-    }
-
-    if (!isFormValid.value) {
-      return
-    }
-
-    // 表单验证通过，打开验证码模态框
-    openCaptchaModal()
-  }
-}
-
-// 执行实际的提交操作
-const performSubmit = async () => {
-
-  isSubmitting.value = true
-
-  try {
-    let result
-    if (isLoginMode.value) {
-      result = await userStore.login({
-        user_id: formData.user_id,
-        password: formData.password
-      })
-    } else {
-      const registerData = {
-        user_id: formData.user_id,
-        nickname: formData.nickname,
-        password: formData.password,
-        captchaId: captchaId.value,
-        captchaText: formData.captchaText,
-        avatar: new URL('@/assets/imgs/avatar.png', import.meta.url).href,
-        bio: '用户没有任何简介',
-        location: '未知'
-      }
-      // 邮件功能启用时才传邮箱相关参数
-      if (emailEnabled.value) {
-        registerData.email = formData.email
-        registerData.emailCode = formData.emailCode
-      }
-      result = await userStore.register(registerData)
-    }
-
-    if (result.success) {
-      showToastMessage(
-        isLoginMode.value ? '登录成功！' : '注册成功！',
-        'success'
-      )
-      if (!isLoginMode.value) {
-        closeCaptchaModal()
-      }
-      setTimeout(() => {
-        emit('success')
-        closeModal()
-        window.location.reload()
-      }, 1000)
-    } else {
-      // 如果是图形验证码相关错误，刷新验证码
-      if (!isLoginMode.value && showCaptchaModal.value &&
-        (result.message.includes('验证码已过期') || result.message.includes('验证码错误') || result.message.includes('captcha')) &&
-        !result.message.includes('邮箱验证码')) {
-        refreshCaptcha()
-      } else if (result.message.includes('邮箱验证码')) {
-        // 邮箱验证码错误，关闭图形验证码模态框并显示错误
-        errors.emailCode = result.message
-        showErrors.value = true
-        closeCaptchaModal()
-      } else if (result.message.includes('用户ID已存在')) {
-        // 用户ID重复错误，设置到对应字段
-        errors.user_id = result.message
-        closeCaptchaModal()
-      } else {
-        unifiedMessage.value = result.message
-      }
-    }
-  } catch (error) {
-    console.error('提交失败:', error)
-    unifiedMessage.value = '网络错误，请稍后重试'
-  } finally {
-    isSubmitting.value = false
   }
 }
 
@@ -544,37 +150,25 @@ const handleToastClose = () => {
 const closeModal = () => {
   isAnimating.value = false
   unlock()
+  if (authWindow && !authWindow.closed) {
+    authWindow.close()
+  }
   setTimeout(() => {
     emit('close')
   }, 200)
 }
 
-// 打开找回密码
-const openResetPassword = () => {
-  isAnimating.value = false
-  unlock()
-  setTimeout(() => {
-    emit('open-reset-password')
-  }, 200)
-}
-
-// 获取邮件功能配置
-const fetchEmailConfig = async () => {
-  try {
-    const response = await fetch('/api/auth/email-config')
-    const result = await response.json()
-    if (result.code === 200) {
-      emailEnabled.value = result.data.emailEnabled
-    }
-  } catch (error) {
-    console.error('获取邮件配置失败:', error)
-  }
-}
-
 onMounted(() => {
   lock()
   isAnimating.value = true
-  fetchEmailConfig()
+  window.addEventListener('message', handleMessage)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('message', handleMessage)
+  if (authWindow && !authWindow.closed) {
+    authWindow.close()
+  }
 })
 </script>
 
@@ -602,11 +196,9 @@ onMounted(() => {
 
 .auth-modal {
   background: var(--bg-color-primary);
-  border-radius: 16px;
+  border-radius: 20px;
   width: 90%;
-  max-width: 400px;
-  max-height: 90vh;
-  overflow-y: auto;
+  max-width: 420px;
   position: relative;
   transform: scale(0.9);
   transition: transform 0.2s ease;
@@ -639,16 +231,32 @@ onMounted(() => {
 .close-btn:hover {
   color: var(--text-color-secondary);
   transform: scale(1.1);
-  transition: all 0.2s ease;
 }
 
 .auth-content {
-  padding: 32px;
+  padding: 48px 40px;
 }
 
 .auth-header {
   text-align: center;
-  margin-bottom: 32px;
+  margin-bottom: 40px;
+}
+
+.logo-circle {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #24292e 0%, #0d1117 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  color: white;
+}
+
+.github-icon {
+  width: 40px;
+  height: 40px;
 }
 
 .auth-title {
@@ -659,80 +267,26 @@ onMounted(() => {
 }
 
 .auth-subtitle {
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text-color-secondary);
   margin: 0;
 }
 
-.auth-form {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.form-label {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-color-primary);
-}
-
-.form-input {
-  padding: 12px 16px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  font-size: 16px;
-  background: var(--bg-color-secondary);
-  color: var(--text-color-primary);
-  caret-color: var(--primary-color);
-  transition: border-color 0.2s ease;
-}
-
-.form-input:focus {
-  outline: none;
-  border-color: var(--primary-color);
-}
-
-.form-input.error {
-  border-color: var(--primary-color);
-}
-
-.error-message {
-  font-size: 12px;
-  color: var(--primary-color);
-  margin-top: -4px;
-}
-
-.submit-error {
-  padding: 12px;
-  background: rgba(var(--primary-color), 0.1);
-  border: 1px solid var(--primary-color);
-  border-radius: 8px;
-  color: var(--primary-color);
+.error-message-box {
+  padding: 14px 16px;
+  background: rgba(255, 59, 48, 0.1);
+  border: 1px solid #ff3b30;
+  border-radius: 12px;
+  color: #ff3b30;
   font-size: 14px;
   text-align: center;
+  margin-bottom: 24px;
 }
 
-.unified-message {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  color: var(--primary-color);
-  font-size: 14px;
-  margin-bottom: 16px;
-  text-align: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-.submit-btn {
-  padding: 14px 24px;
-  background: var(--primary-color);
+.github-login-btn {
+  width: 100%;
+  padding: 16px 24px;
+  background: #24292e;
   color: white;
   border: none;
   border-radius: 999px;
@@ -743,23 +297,33 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-height: 48px;
+  gap: 10px;
+  min-height: 52px;
 }
 
-.submit-btn:hover {
-  background-color: var(--primary-color-dark);
+.github-login-btn:hover:not(:disabled) {
+  background: #0d1117;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.submit-btn:disabled {
+.github-login-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.github-login-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-  transform: none;
+}
+
+.btn-github-icon {
+  width: 22px;
+  height: 22px;
 }
 
 .loading-spinner {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   border: 2px solid rgba(255, 255, 255, 0.3);
   border-top: 2px solid white;
   border-radius: 50%;
@@ -767,98 +331,33 @@ onMounted(() => {
 }
 
 @keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-
-  100% {
-    transform: rotate(360deg);
-  }
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
-.auth-switch {
+.auth-footer {
   text-align: center;
-  padding-top: 24px;
+  margin-top: 32px;
 }
 
-.switch-text {
-  font-size: 14px;
-  color: var(--text-color-secondary);
-  margin-right: 8px;
-}
-
-.switch-btn {
-  background: none;
-  border: none;
-  color: var(--primary-color);
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  text-decoration: underline;
-  transition: color 0.2s ease;
-}
-
-.switch-btn:hover {
-  opacity: 0.8;
-}
-
-.forgot-password {
-  text-align: center;
-  margin-top: 8px;
-}
-
-.forgot-btn {
-  background: none;
-  border: none;
-  color: var(--text-color-secondary);
+.footer-text {
   font-size: 13px;
-  cursor: pointer;
-  transition: color 0.2s ease;
-}
-
-.forgot-btn:hover {
-  color: var(--primary-color);
-}
-
-/* 邮箱验证码输入框和按钮样式 */
-.form-input-with-button {
-  display: flex;
-  gap: 8px;
-}
-
-.form-input-with-button .form-input {
-  flex: 1;
-}
-
-.email-code-btn {
-  padding: 12px 16px;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  background: var(--primary-color);
-  color: white;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-}
-
-.email-code-btn:hover:not(:disabled) {
-  background-color: var(--primary-color-dark);
-}
-
-.email-code-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  color: var(--text-color-secondary);
+  margin: 0;
 }
 
 /* 响应式设计 */
 @media (max-width: 480px) {
   .auth-content {
-    padding: 24px;
+    padding: 36px 28px;
   }
 
   .auth-title {
-    font-size: 20px;
+    font-size: 22px;
+  }
+
+  .github-login-btn {
+    font-size: 15px;
   }
 }
 </style>
