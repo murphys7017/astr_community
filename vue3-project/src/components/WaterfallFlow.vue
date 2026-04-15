@@ -973,10 +973,7 @@ function handleImageError(event) {
                             </div>
                         </div>
                         <div v-else class="content-img content-img--text" @click="onCardClick(item, $event)">
-                            <div class="text-card-header">
-                                <SvgIcon name="text" width="14" height="14" />
-                                <span class="text-card-badge">纯文本</span>
-                            </div>
+                            <div class="text-card-badge">纯文本</div>
                             <p class="text-card-preview">{{ getCardPreview(item.content) || '这是一条纯文本内容' }}</p>
                         </div>
                         <div class="content-title">{{ item.title }}</div>
@@ -1134,15 +1131,15 @@ function handleImageError(event) {
 }
 
 .content-img--text {
-    min-height: 120px;
-    padding: 16px;
-    border-radius: 16px;
+    min-height: 100px;
+    padding: 14px;
+    border-radius: 12px;
     border: 1px solid var(--border-color-primary);
     background: var(--bg-color-secondary);
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    gap: 10px;
+    gap: 8px;
     transition: all 0.2s ease;
 }
 
@@ -1151,18 +1148,12 @@ function handleImageError(event) {
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
 }
 
-.text-card-header {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: var(--primary-color);
-}
-
 .text-card-badge {
-    font-size: 12px;
-    letter-spacing: 0.05em;
-    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    font-weight: 700;
     color: var(--primary-color);
+    text-transform: uppercase;
 }
 
 .text-card-preview {
