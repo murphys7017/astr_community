@@ -269,7 +269,7 @@ const handlePublish = async () => {
       tags: form.tags,
       category_id: form.category_id,
       type: 1,
-      status: 2
+      status: 0  // TODO: 后续接入 AI 审核后改为 2，待审核通过后自动更新状态
     }
     showMessage('正在发布笔记...', 'info')
     let response

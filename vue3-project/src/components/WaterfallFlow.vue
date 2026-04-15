@@ -222,25 +222,37 @@ const getOrEstimateItemHeight = (item) => {
 }
 
 const getCardPreview = (content = '') => {
-    if (!content) return ''
+    try {
+        if (!content) return ''
 
-    // 移除自定义块语法行（[::md](url) 和 [::video](url)）
-    const lines = content.split('\n')
-    const filteredLines = lines.filter(line => {
-        BLOCK_REGEX.lastIndex = 0
-        return !BLOCK_REGEX.test(line)
-    })
-    const cleanedContent = filteredLines.join('\n')
+        // 确保 content 是字符串
+        const contentStr = String(content)
 
-    // 渲染 markdown 为 HTML
-    const html = md.render(cleanedContent)
+        // 移除自定义块语法行（[::md](url) 和 [::video](url)）
+        const lines = contentStr.split('\n')
+        const filteredLines = lines.filter(line => {
+            BLOCK_REGEX.lastIndex = 0
+            return !BLOCK_REGEX.test(line)
+        })
+        const cleanedContent = filteredLines.join('\n')
 
-    // 移除 HTML 标签并清理空白
-    return html
-        .replace(/<[^>]*>/g, ' ')
-        .replace(/&nbsp;/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim()
+        // 渲染 markdown 为 HTML
+        const html = md.render(cleanedContent)
+
+        // 移除 HTML 标签并清理空白
+        return html
+            .replace(/<[^>]*>/g, ' ')
+            .replace(/&nbsp;/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+    } catch (e) {
+        // 如果出错，返回原始内容的清理版本
+        return String(content || '')
+            .replace(/<[^>]*>/g, ' ')
+            .replace(/&nbsp;/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+    }
 }
 
 // 当图片加载完成后，更新实际高度（优化版）
@@ -961,7 +973,10 @@ function handleImageError(event) {
                             </div>
                         </div>
                         <div v-else class="content-img content-img--text" @click="onCardClick(item, $event)">
-                            <div class="text-card-badge">纯文本</div>
+                            <div class="text-card-header">
+                                <SvgIcon name="text" width="14" height="14" />
+                                <span class="text-card-badge">纯文本</span>
+                            </div>
                             <p class="text-card-preview">{{ getCardPreview(item.content) || '这是一条纯文本内容' }}</p>
                         </div>
                         <div class="content-title">{{ item.title }}</div>
@@ -1119,24 +1134,34 @@ function handleImageError(event) {
 }
 
 .content-img--text {
-    min-height: 140px;
-    padding: 14px;
-    border-radius: 14px;
+    min-height: 120px;
+    padding: 16px;
+    border-radius: 16px;
     border: 1px solid var(--border-color-primary);
-    background:
-        linear-gradient(160deg, rgba(44, 120, 92, 0.14), rgba(44, 120, 92, 0.04)),
-        var(--bg-color-secondary);
+    background: var(--bg-color-secondary);
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    gap: 12px;
+    justify-content: flex-start;
+    gap: 10px;
+    transition: all 0.2s ease;
+}
+
+.content-img--text:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.text-card-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--primary-color);
 }
 
 .text-card-badge {
-    align-self: flex-start;
-    font-size: 11px;
-    letter-spacing: 0.08em;
-    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.05em;
+    font-weight: 600;
     color: var(--primary-color);
 }
 
@@ -1144,12 +1169,13 @@ function handleImageError(event) {
     margin: 0;
     color: var(--text-color-primary);
     font-size: 14px;
-    line-height: 1.7;
+    line-height: 1.6;
     display: -webkit-box;
     -webkit-line-clamp: 4;
     line-clamp: 4;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* 视频笔记标志样式 */
