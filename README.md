@@ -127,6 +127,23 @@ AstrBot Community 基于原项目 [ZTMYO/XiaoShiLiu](https://github.com/ZTMYO/Xi
 - **组件与分层：** 可复用组件拆分、按领域分组与别名引入
 - **后台管理：** 基础CRUD、数据管理与配置面板，支持后续扩展权限与统计
 - **快速部署：** 基于 Docker 的一键部署方案，支持多环境配置与自动化部署
+- **Markdown 渲染：** 支持完整 Markdown 语法、远程 Markdown 内联、视频嵌入与双主题切换
+
+## 功能特性
+
+### Markdown 渲染系统
+
+- **完整 Markdown 支持**：标题、列表、代码块、引用、表格等标准语法
+- **外链图片**：`![图片描述](url)` 支持外部图片链接渲染
+- **远程 Markdown**：`[::md](url)` 支持远程 Markdown 文件抓取并内联渲染（默认展开）
+- **视频嵌入**：`[::video](url)` 支持 mp4/webm/ogg 直链视频和 Bilibili 长链接解析
+- **双主题切换**：Phycat Mint（浅色）和 Phycat Abyss（深色）两套主题，保存在本地 localStorage
+
+### 纯文本社区优化
+
+- **移除媒体上传**：不再提供站内文件上传入口，所有媒体通过外链引用
+- **媒体标签拦截**：后端自动拦截 `<img>`、`<video>`、`<audio>`、`<iframe>` 等 HTML 标签
+- **移除 @提及功能**：全站移除 mention UI、解析和通知生成逻辑
 
 ## 技术栈
 
@@ -143,6 +160,7 @@ AstrBot Community 基于原项目 [ZTMYO/XiaoShiLiu](https://github.com/ZTMYO/Xi
 - **CropperJS** - 图片裁剪
 - **Vue3 Emoji Picker** - 表情选择器
 - **svg-captcha** - 验证码生成器
+- **markdown-it** - Markdown 解析器
 </details>
 
 <details>
