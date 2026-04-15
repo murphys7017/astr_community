@@ -18,7 +18,7 @@
         <span>来自: </span>
         <a :href="url" target="_blank" rel="noopener noreferrer">{{ displayUrl }}</a>
       </div>
-      <MarkdownRenderer :content="fetchedContent" />
+      <MarkdownRenderer :content="fetchedContent" :parent-urls="currentUrls" :theme="theme" />
     </div>
   </div>
 </template>
@@ -35,6 +35,11 @@ const props = defineProps({
   theme: {
     type: String,
     default: 'phycat-mint'
+  },
+  // 从父链传递过来的已访问 URL 集合
+  parentUrls: {
+    type: Set,
+    default: () => new Set()
   }
 })
 
@@ -42,11 +47,17 @@ const emit = defineEmits(['fetch-success'])
 
 const state = ref('loading') // loading, success, error
 const fetchedContent = ref('')
-const fetchedUrls = ref(new Set())
 
 const MAX_CONTENT_SIZE = 100 * 1024 // 100KB
 const FETCH_TIMEOUT = 8000 // 8秒
 const MAX_RECURSION = 2
+
+// 当前渲染链的 URLs（包括父链 + 当前）
+const currentUrls = computed(() => {
+  const urls = new Set(props.parentUrls)
+  urls.add(props.url)
+  return urls
+})
 
 const displayUrl = computed(() => {
   try {
@@ -57,14 +68,20 @@ const displayUrl = computed(() => {
   }
 })
 
+// 检查是否超出递归深度
+const isRecursionExceeded = computed(() => {
+  return props.parentUrls.size >= MAX_RECURSION
+})
+
 const fetchRemoteMarkdown = async () => {
-  // 检查递归深度
-  if (fetchedUrls.value.has(props.url)) {
+  // 检查是否已访问（循环引用检测）
+  if (props.parentUrls.has(props.url)) {
     state.value = 'error'
     return
   }
 
-  if (fetchedUrls.value.size >= MAX_RECURSION) {
+  // 检查递归深度
+  if (isRecursionExceeded.value) {
     state.value = 'error'
     return
   }
@@ -98,7 +115,6 @@ const fetchRemoteMarkdown = async () => {
       throw new Error('Content too large')
     }
 
-    fetchedUrls.value.add(props.url)
     fetchedContent.value = text
     state.value = 'success'
     emit('fetch-success', text)

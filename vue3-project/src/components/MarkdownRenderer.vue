@@ -9,6 +9,7 @@
           v-else-if="segment.type === 'remote-md'"
           :url="segment.url"
           :theme="currentTheme"
+          :parent-urls="segment.parentUrls"
           @fetch-success="handleRemoteFetchSuccess"
         />
         <!-- 视频段 -->
@@ -26,6 +27,15 @@ import VideoEmbed from './VideoEmbed.vue'
 
 const props = defineProps({
   content: {
+    type: String,
+    default: ''
+  },
+  // 父链传递过来的已访问 URL 集合，用于递归深度和循环检测
+  parentUrls: {
+    type: Set,
+    default: () => new Set()
+  },
+  theme: {
     type: String,
     default: ''
   }
@@ -46,6 +56,11 @@ const currentTheme = ref(DEFAULT_THEME)
 
 const themeClass = computed(() => {
   return `markdown-theme--${currentTheme.value}`
+})
+
+// 当前渲染链的 URLs（包括父链）
+const currentUrls = computed(() => {
+  return props.parentUrls || new Set()
 })
 
 // 自定义块语法正则
@@ -81,7 +96,7 @@ const parsedSegments = computed(() => {
       flushMarkdown()
       const [, type, url] = match
       if (type === 'md') {
-        segments.push({ type: 'remote-md', url })
+        segments.push({ type: 'remote-md', url, parentUrls: currentUrls.value })
       } else if (type === 'video') {
         segments.push({ type: 'video', url })
       } else {
