@@ -50,99 +50,18 @@ const validateAndCleanMentionLink = (linkHtml) => {
 
 /**
  * 内容安全过滤函数
- * 保留安全的mention链接和换行，转义其他所有HTML标签
+ * 注意：对于 Markdown 内容，不再进行 HTML 转义，因为前端 markdown-it 会自动处理
+ * 此函数主要用于验证和清理 mention 链接
  */
 const sanitizeContent = (content) => {
   if (!content) return ''
 
-  // 1. 提取、验证并保护mention链接
-  const mentionLinks = []
-  let processedContent = ''
-  let cursor = 0
-  while (cursor < content.length) {
-    const aStart = content.indexOf('<a', cursor)
-    if (aStart === -1) {
-      processedContent += content.slice(cursor)
-      break
-    }
+  // 对于纯文本社区，不允许任何原始 HTML 标签
+  // markdown 内容会被前端 markdown-it 渲染，不需要也不应该在这里转义
+  // markdown-it 默认会转义 HTML 标签，防止 XSS
 
-    processedContent += content.slice(cursor, aStart)
-
-    const aEnd = content.indexOf('>', aStart)
-    if (aEnd === -1) {
-      processedContent += content.slice(aStart)
-      break
-    }
-
-    const closeTag = '</a>'
-    const aClose = content.indexOf(closeTag, aEnd + 1)
-    if (aClose === -1) {
-      processedContent += content.slice(aStart)
-      break
-    }
-
-    const fullLink = content.slice(aStart, aClose + closeTag.length)
-    if (fullLink.includes('mention-link')) {
-      const cleanedLink = validateAndCleanMentionLink(fullLink)
-      if (cleanedLink) {
-        const placeholder = `__MENTION_LINK_${mentionLinks.length}__`
-        mentionLinks.push(cleanedLink)
-        processedContent += placeholder
-      } else {
-        processedContent += fullLink
-      }
-    } else {
-      processedContent += fullLink
-    }
-
-    cursor = aClose + closeTag.length
-  }
-
-  // 2. 保护换行符 - 保留原始换行符，让 markdown-it 处理
-  // 注意：不再将 \n 转换为 <br>，因为 Markdown 渲染器需要原始换行符来正确解析
-
-  // 3. 保护<br>标签
-  const brTags = []
-  processedContent = processedContent.replace(/<br\s*\/?>/gi, () => {
-    const placeholder = `__BR_TAG_${brTags.length}__`
-    brTags.push('<br>')
-    return placeholder
-  })
-
-  // 4. 保护安全的<img>标签（允许http/https协议和本地相对路径）
-  const imgTags = []
-  processedContent = processedContent.replace(/<img[^>]*src="([^"]*)"[^>]*>/gi, (match, src) => {
-    if (/\son\w+\s*=/i.test(match) || /javascript\s*:/i.test(match)) {
-      return match
-    }
-
-    // 验证URL是否安全：允许http/https绝对路径和/api/开头的相对路径
-    if (src && (src.startsWith('http://') || src.startsWith('https://') || src.startsWith('/api/'))) {
-      const placeholder = `__IMG_TAG_${imgTags.length}__`
-      const escapedSrc = src.replace(/"/g, '&quot;').replace(/'/g, '&#39;')
-      imgTags.push(`<img src="${escapedSrc}" alt="图片" class="comment-image" />`)
-      return placeholder
-    }
-    return match
-  })
-
-  // 5. 转义所有剩余的HTML标签
-  processedContent = escapeHtml(processedContent)
-
-  // 6. 恢复被保护的内容
-  brTags.forEach((tag, index) => {
-    processedContent = processedContent.replace(`__BR_TAG_${index}__`, tag)
-  })
-
-  imgTags.forEach((tag, index) => {
-    processedContent = processedContent.replace(`__IMG_TAG_${index}__`, tag)
-  })
-
-  mentionLinks.forEach((link, index) => {
-    processedContent = processedContent.replace(`__MENTION_LINK_${index}__`, link)
-  })
-
-  return processedContent.trim()
+  // 返回原始内容即可
+  return content.trim()
 }
 
 /**
