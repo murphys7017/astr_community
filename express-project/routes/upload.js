@@ -7,6 +7,8 @@ const { uploadFile, uploadVideo } = require('../utils/uploadHelper');
 const { parseSize } = require('../utils/fileHelpers');
 const config = require('../config/config');
 
+const UPLOAD_DISABLED_MESSAGE = '平台当前已关闭文件上传，请改用外链内容';
+
 // 配置 multer 内存存储（用于云端图床）
 const storage = multer.memoryStorage();
 
@@ -71,187 +73,28 @@ const videoUpload = multer({
 });
 
 // 单图片上传到图床
-router.post('/single', authenticateToken, upload.single('file'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({ code: RESPONSE_CODES.VALIDATION_ERROR, message: '没有上传文件' });
-    }
-
-    // 使用统一上传函数（根据配置选择策略）
-    const result = await uploadFile(
-      req.file.buffer,
-      req.file.originalname,
-      req.file.mimetype
-    );
-
-    if (result.success) {
-      // 记录用户上传操作日志
-      console.log(`单图片上传成功 - 用户ID: ${req.user.id}, 文件名: ${req.file.originalname}`);
-
-      res.json({
-        code: RESPONSE_CODES.SUCCESS,
-        message: '上传成功',
-        data: {
-          originalname: req.file.originalname,
-          size: req.file.size,
-          url: result.url
-        }
-      });
-    } else {
-      res.status(HTTP_STATUS.BAD_REQUEST).json({ code: RESPONSE_CODES.VALIDATION_ERROR, message: result.message || '图床上传失败' });
-    }
-  } catch (error) {
-    console.error('单图片上传失败:', error);
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: '上传失败' });
-  }
+router.post('/single', authenticateToken, async (req, res) => {
+  return res.status(HTTP_STATUS.BAD_REQUEST).json({
+    code: RESPONSE_CODES.VALIDATION_ERROR,
+    message: UPLOAD_DISABLED_MESSAGE
+  });
 });
 
 // 多图片上传到图床
-router.post('/multiple', authenticateToken, upload.array('files', 9), async (req, res) => {
-  try {
-    if (!Array.isArray(req.files) || req.files.length === 0) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-        success: false, 
-        data: null, 
-        message: '没有上传文件' 
-      });
-    }
-
-    const files = req.files;
-
-    const uploadResults = [];
-    const errors = [];
-
-    for (const file of files) {
-      const result = await uploadFile(
-        file.buffer,
-        file.originalname,
-        file.mimetype
-      );
-
-      if (result.success) {
-        uploadResults.push({
-          originalname: file.originalname,
-          size: file.size,
-          url: result.url
-        });
-      } else {
-        errors.push({ file: file.originalname, error: result.message });
-      }
-    }
-
-    if (uploadResults.length === 0) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-        success: false, 
-        data: null, 
-        message: '所有图片上传失败' 
-      });
-    }
-
-    // 记录用户上传操作日志
-    console.log(`多图片上传成功 - 用户ID: ${req.user.id}, 文件数量: ${uploadResults.length}`);
-
-    res.json({
-      success: true,
-      data: {
-        uploaded: uploadResults,
-        errors,
-        total: files.length,
-        successCount: uploadResults.length,
-        errorCount: errors.length
-      },
-      message: errors.length === 0 ? '所有图片上传成功' : `${uploadResults.length}张上传成功，${errors.length}张失败`
-    });
-  } catch (error) {
-    console.error('多图片上传失败:', error);
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ 
-      success: false, 
-      data: null, 
-      message: '上传失败' 
-    });
-  }
+router.post('/multiple', authenticateToken, async (req, res) => {
+  return res.status(HTTP_STATUS.BAD_REQUEST).json({
+    success: false,
+    data: null,
+    message: UPLOAD_DISABLED_MESSAGE
+  });
 });
 
 // 单视频上传到图床
-router.post('/video', authenticateToken, videoUpload.fields([
-  { name: 'file', maxCount: 1 },
-  { name: 'thumbnail', maxCount: 1 }
-]), async (req, res) => {
-  try {
-    if (!req.files || !Array.isArray(req.files.file) || !req.files.file[0]) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-        code: RESPONSE_CODES.VALIDATION_ERROR, 
-        message: '没有上传视频文件' 
-      });
-    }
-
-    const videoFile = req.files.file[0];
-    const thumbnailFile = Array.isArray(req.files.thumbnail) ? req.files.thumbnail[0] : null;
-
-    console.log(`视频上传开始 - 用户ID: ${req.user.id}, 视频文件: ${videoFile.originalname}`);
-    if (thumbnailFile) {
-      console.log(`包含前端生成的缩略图: ${thumbnailFile.originalname}`);
-    }
-
-    // 上传视频文件
-    const uploadResult = await uploadVideo(
-      videoFile.buffer,
-      videoFile.originalname,
-      videoFile.mimetype
-    );
-
-    if (!uploadResult.success) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({ 
-        code: RESPONSE_CODES.VALIDATION_ERROR, 
-        message: uploadResult.message || '视频上传失败' 
-      });
-    }
-
-    let coverUrl = null;
-
-    // 优先使用前端生成的缩略图
-    if (thumbnailFile) {
-      try {
-        console.log('使用前端生成的缩略图');
-        const thumbnailUploadResult = await uploadFile(
-          thumbnailFile.buffer,
-          thumbnailFile.originalname,
-          thumbnailFile.mimetype
-        );
-        
-        if (thumbnailUploadResult.success) {
-          coverUrl = thumbnailUploadResult.url;
-          console.log('前端缩略图上传成功:', coverUrl);
-        } else {
-          console.warn('前端缩略图上传失败:', thumbnailUploadResult.message);
-        }
-      } catch (error) {
-        console.warn('前端缩略图处理失败:', error.message);
-      }
-    }
-
-
-    // 记录用户上传操作日志
-    console.log(`视频上传成功 - 用户ID: ${req.user.id}, 文件名: ${videoFile.originalname}, 缩略图: ${coverUrl ? '有' : '无'}`);
-
-    res.json({
-      code: RESPONSE_CODES.SUCCESS,
-      message: '上传成功',
-      data: {
-        originalname: videoFile.originalname,
-        size: videoFile.size,
-        url: uploadResult.url,
-        filePath: uploadResult.filePath,
-        coverUrl: coverUrl
-      }
-    });
-  } catch (error) {
-    console.error('视频上传失败:', error);
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ 
-      code: RESPONSE_CODES.ERROR, 
-      message: '上传失败' 
-    });
-  }
+router.post('/video', authenticateToken, async (req, res) => {
+  return res.status(HTTP_STATUS.BAD_REQUEST).json({
+    code: RESPONSE_CODES.VALIDATION_ERROR,
+    message: UPLOAD_DISABLED_MESSAGE
+  });
 });
 
 // 注意：使用云端图床后，文件删除由图床服务商管理

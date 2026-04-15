@@ -5,9 +5,9 @@
       <div class="about-header">
         <div class="header-content">
           <div class="logo-section">
-            <div class="about-logo"><img :src="logoUrl" alt="AstrBot" /></div>
+            <div class="about-logo"><img :src="logoUrl" alt="AstrBot Community" /></div>
 
-            <h2 class="about-title">关于AstrBot</h2>
+            <h2 class="about-title">关于 AstrBot Community</h2>
           </div>
           <p class="version">v1.3.2</p>
         </div>
@@ -21,7 +21,7 @@
           <div class="intro-section">
             <h3>项目简介</h3>
             <p>
-              AstrBot Community 是一个 AstrBot 插件分享社区，为开发者提供插件分享、交流讨论、教程文档等服务。
+              AstrBot Community 是一个面向 AstrBot 用户的轻量文本社区，当前以纯文本交流、话题讨论和链接分享为主。
             </p>
           </div>
           <div class="author-section">
@@ -51,20 +51,16 @@
           </div>
 
           <div class="api-section">
-            <h3>接口服务</h3>
+            <h3>平台说明</h3>
             <div class="api-content">
               <p>
-                <strong>图片存储：</strong>灌装的示例图片来自 <a href="https://t.alcy.cc/" target="_blank" class="api-link"><img
-                    :src="liciUrl" alt="栗次元" class="api-icon">栗次元图床</a>，提供稳定的图片存储服务。
+                <strong>内容形态：</strong>平台当前以纯文本内容为主，图片和视频请通过外链引用，站内不再提供文件上传入口。
               </p>
               <p>
-                <strong>图片上传：</strong>用户上传图片使用了 <a href="https://api.aa1.cn/doc/360tc.html" target="_blank"
-                  class="api-link"><img :src="xiaRouUrl" alt="夏柔" class="api-icon">夏柔API</a>，确保图片上传的稳定性和速度。
+                <strong>头像来源：</strong>用户头像建议直接使用 GitHub 或其他外链地址，避免重复上传和额外存储成本。
               </p>
               <p>
-                <strong>属地查询：</strong>IP属地查询服务使用 <a href="https://api.pearktrue.cn/console/detail?id=290"
-                  target="_blank" class="api-link"><img :src="baoLuoUrl" alt="保罗"
-                    class="api-icon">保罗API</a>，实现精准的IP属地定位功能。
+                <strong>账号验证：</strong>平台保留邮箱验证码能力，用于基础账号验证和账号安全流程。
               </p>
             </div>
           </div>
@@ -93,7 +89,7 @@
             <h3>版权声明</h3>
             <div class="copyright-content">
               <p>
-                <strong>设计灵感：</strong>本插件分享社区的UI设计和交互体验参考了小红书平台，旨在为下载该开源项目的人员提供一个熟悉的项目体验。
+                <strong>设计灵感：</strong>本社区的 UI 设计和交互体验参考了内容社区产品，旨在提供熟悉、轻量的讨论体验。
               </p>
               <p>
                 <strong>开源项目：</strong>本项目基于 GPLv3 协议开源，仅供学习交流使用，不用于商业用途。所有代码遵循 GPLv3 开源协议，欢迎技术交流与讨论。
@@ -105,7 +101,7 @@
           </div>
 
           <div class="about-footer">
-            <p>&copy; 2025 AstrBot插件分享社区. Made with ❤️ by @ZTMYO</p>
+            <p>&copy; 2025 AstrBot Community. Made with ❤️ by @ZTMYO</p>
           </div>
         </div>
       </div>
@@ -125,9 +121,6 @@ const { lock, unlock } = useScrollLock()
 // 静态资源URL
 const logoUrl = new URL('@/assets/imgs/AstrBot.png', import.meta.url).href
 const ztmyoUrl = new URL('@/assets/imgs/ztmyo.png', import.meta.url).href
-const liciUrl = new URL('@/assets/imgs/栗次元.ico', import.meta.url).href
-const xiaRouUrl = new URL('@/assets/imgs/夏柔.ico', import.meta.url).href
-const baoLuoUrl = new URL('@/assets/imgs/保罗.ico', import.meta.url).href
 
 const isAnimating = ref(false)
 

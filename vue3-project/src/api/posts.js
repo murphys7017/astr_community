@@ -15,7 +15,7 @@ function transformPostData(backendPost) {
 
   const transformedData = {
     id: backendPost.id,
-    image: (backendPost.images && backendPost.images[0]) || new URL('@/assets/imgs/未加载.png', import.meta.url).href,
+    image: backendPost.image || (backendPost.images && backendPost.images[0]) || backendPost.cover_url || null,
     title: backendPost.title,
     content: backendPost.content,
     images: backendPost.images || [],

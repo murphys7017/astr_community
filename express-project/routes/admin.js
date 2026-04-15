@@ -12,6 +12,28 @@ const {
 } = require('../utils/validationHelpers')
 const { extractMentionedUsers, hasMentions } = require('../utils/mentionParser')
 const NotificationHelper = require('../utils/notificationHelper')
+const { sanitizeContent } = require('../utils/contentSecurity')
+
+const BLOCKED_MEDIA_TAG_REGEX = /<(img|video|audio|iframe)\b/i
+
+const hasEmbeddedMediaMarkup = (content = '') => BLOCKED_MEDIA_TAG_REGEX.test(content)
+
+const hasUploadedMediaPayload = (payload = {}) => {
+  const { images, image_urls, video_upload, video, video_url, cover_url, type } = payload
+  const hasImages = [images, image_urls].some(list =>
+    Array.isArray(list) && list.some(item => {
+      if (typeof item === 'string') return item.trim()
+      return item && typeof item === 'object' && Object.values(item).some(value => typeof value === 'string' ? value.trim() : Boolean(value))
+    })
+  )
+  const hasVideoObject = [video_upload, video].some(item =>
+    item && typeof item === 'object' && Object.values(item).some(value => typeof value === 'string' ? value.trim() : Boolean(value))
+  )
+  const hasVideoString = [video_url, cover_url].some(value => typeof value === 'string' && value.trim())
+  const isVideoType = Number(type) === 2
+
+  return hasImages || hasVideoObject || hasVideoString || isVideoType
+}
 
 // 创建笔记
 // Posts CRUD 配置
@@ -45,13 +67,24 @@ const postsCrudConfig = {
 
   // 创建前的自定义验证和处理
   beforeCreate: async (data, req) => {
-    const { user_id, images, image_urls, tags, video_upload, video, video_url, cover_url } = data
+    const { user_id, images, image_urls, tags, video_upload, video, video_url, cover_url, type } = data
 
     // 检查用户是否存在
     const [userResult] = await pool.execute('SELECT id FROM users WHERE id = ?', [String(user_id)])
     if (userResult.length === 0) {
       return { isValid: false, message: '用户不存在' }
     }
+
+    if (hasUploadedMediaPayload({ images, image_urls, video_upload, video, video_url, cover_url, type })) {
+      return { isValid: false, message: '后台当前也仅支持纯文本帖子，不能创建图片或视频内容' }
+    }
+
+    data.content = sanitizeContent(data.content || '')
+    if (hasEmbeddedMediaMarkup(data.content)) {
+      return { isValid: false, message: '帖子内容暂不支持嵌入图片或媒体标签，请改用外链' }
+    }
+
+    data.type = 1
 
     // 确保分类ID存在
     if (!data.category_id) {
@@ -60,13 +93,7 @@ const postsCrudConfig = {
 
     // 保存关联数据到req对象，供afterCreate使用
     req._postData = {
-      images,
-      image_urls,
-      tags,
-      video_upload,
-      video,
-      video_url,
-      cover_url
+      tags
     }
 
     // 删除不属于posts表的字段
@@ -85,50 +112,7 @@ const postsCrudConfig = {
   afterCreate: async (postId, data, req) => {
     // 从req._postData获取关联数据（在beforeCreate中保存的）
     const postData = req._postData || {}
-    const { images, image_urls, tags } = postData
-    // 处理图片信息
-    if (images !== undefined || image_urls !== undefined) {
-      // 收集所有有效的图片URL
-      const allImages = []
-      // 处理images字段
-      if (images && Array.isArray(images)) {
-        for (const image of images) {
-          if (typeof image === 'string') {
-            allImages.push(image)
-          } else if (image && typeof image === 'object') {
-            const possibleUrlProps = ['url', 'preview', 'src', 'path', 'link']
-            for (const prop of possibleUrlProps) {
-              if (image[prop] && typeof image[prop] === 'string') {
-                allImages.push(image[prop])
-                break
-              }
-            }
-          }
-        }
-      }
-
-      // 处理image_urls字段
-      if (image_urls && Array.isArray(image_urls)) {
-        const validUrls = image_urls.filter(url =>
-          url &&
-          typeof url === 'string'
-        )
-        allImages.push(...validUrls)
-      }
-
-      // 插入图片
-      if (allImages.length > 0) {
-        for (const imageUrl of allImages) {
-          const cleanUrl = imageUrl ? imageUrl.trim().replace(/\`/g, '').replace(/\s+/g, '') : ''
-          if (cleanUrl) {
-            await pool.execute(
-              'INSERT INTO post_images (post_id, image_url) VALUES (?, ?)',
-              [String(postId), cleanUrl]
-            )
-          }
-        }
-      }
-    }
+    const { tags } = postData
 
     // 处理标签
     if (tags && tags.length > 0) {
@@ -193,21 +177,24 @@ const postsCrudConfig = {
       }
     }
 
-    // 处理视频 - 存储到post_videos表
-    const { video_url, cover_url } = postData
-    if (video_url) {
-      await pool.execute(
-        'INSERT INTO post_videos (post_id, video_url, cover_url) VALUES (?, ?, ?)',
-        [String(postId), video_url, cover_url || null]
-      )
-    }
   },
 
   // 更新前的处理
-  beforeUpdate: async (data, req, id) => {
+  beforeUpdate: async (data, id, req) => {
     // 确保浏览量不为负数
     if (data.view_count !== undefined && data.view_count !== null) {
       data.view_count = Math.max(0, parseInt(data.view_count) || 0)
+    }
+
+    if (data.content !== undefined) {
+      data.content = sanitizeContent(data.content || '')
+      if (hasEmbeddedMediaMarkup(data.content)) {
+        return { isValid: false, message: '帖子内容暂不支持嵌入图片或媒体标签，请改用外链' }
+      }
+    }
+
+    if (hasUploadedMediaPayload(req.body || {})) {
+      return { isValid: false, message: '后台当前也仅支持纯文本帖子，不能修改图片或视频内容' }
     }
 
     return { isValid: true }
@@ -215,102 +202,7 @@ const postsCrudConfig = {
 
   // 更新后的处理（处理图片和标签）
   afterUpdate: async (postId, data, req) => {
-    const { images, image_urls, tags } = data
-
-    // 更新图片信息
-    if (images !== undefined || image_urls !== undefined) {
-      // 删除原有图片
-      await pool.execute('DELETE FROM post_images WHERE post_id = ?', [String(postId)])
-
-      // 使用Set来避免重复的图片URL
-      const allImagesSet = new Set()
-
-      // 处理image_urls字段
-      if (image_urls && Array.isArray(image_urls)) {
-        for (const url of image_urls) {
-          if (url && typeof url === 'string') {
-            allImagesSet.add(url)
-          }
-        }
-      }
-
-      // 处理images字段
-      if (images && Array.isArray(images)) {
-        for (const image of images) {
-          if (typeof image === 'string') {
-            allImagesSet.add(image)
-          } else if (image && typeof image === 'object') {
-            const possibleUrlProps = ['url', 'preview', 'src', 'path', 'link']
-            for (const prop of possibleUrlProps) {
-              if (image[prop] && typeof image[prop] === 'string') {
-                allImagesSet.add(image[prop])
-                break
-              }
-            }
-          }
-        }
-      }
-
-      // 插入新图片
-      const allImages = Array.from(allImagesSet)
-      if (allImages.length > 0) {
-        for (const imageUrl of allImages) {
-          const cleanUrl = imageUrl ? imageUrl.trim().replace(/\`/g, '').replace(/\s+/g, '') : ''
-          if (cleanUrl) {
-            await pool.execute(
-              'INSERT INTO post_images (post_id, image_url) VALUES (?, ?)',
-              [postId, cleanUrl]
-            )
-          }
-        }
-      }
-    }
-
-    // 处理视频更新 - 只要有任何视频相关字段就触发处理
-    const hasVideoUpdate = data.video_url !== undefined || data.cover_url !== undefined || data.video !== undefined
-
-    if (hasVideoUpdate) {
-      // 获取原有视频记录用于清理文件
-      const [oldVideoRows] = await pool.execute('SELECT video_url, cover_url FROM post_videos WHERE post_id = ?', [String(postId)])
-
-      // 删除原有视频记录
-      await pool.execute('DELETE FROM post_videos WHERE post_id = ?', [String(postId)])
-
-      // 清理废弃的视频文件
-      if (oldVideoRows.length > 0) {
-        const { batchCleanupFiles } = require('../utils/fileCleanup')
-        const oldVideoUrls = oldVideoRows.map(row => row.video_url).filter(url => url)
-        const oldCoverUrls = oldVideoRows.map(row => row.cover_url).filter(url => url)
-
-        // 异步清理文件，不阻塞响应
-        batchCleanupFiles(oldVideoUrls, oldCoverUrls).then(result => {
-          // 文件清理完成
-        }).catch(error => {
-          console.error('后台管理系统清理废弃视频文件失败:', error)
-        })
-      }
-
-      // 插入新视频记录 - 优先使用video对象，然后是分离字段
-      let videoUrl = null
-      let coverUrl = null
-
-      if (data.video && data.video.url) {
-        // FormModal传递的video对象格式
-        videoUrl = data.video.url
-        coverUrl = data.video.coverUrl || ''
-      } else if (data.video_url && data.video_url.trim() !== '') {
-        // 分离字段格式
-        videoUrl = data.video_url
-        coverUrl = data.cover_url || ''
-      }
-
-      if (videoUrl) {
-        await pool.execute(
-          'INSERT INTO post_videos (post_id, video_url, cover_url) VALUES (?, ?, ?)',
-          [postId, videoUrl, coverUrl]
-        )
-      }
-    }
+    const { tags } = data
 
     // 更新标签信息
     if (tags !== undefined) {

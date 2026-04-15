@@ -12,18 +12,9 @@
 
           <div class="form-group">
             <label class="form-label">头像:</label>
-            <div class="avatar-upload-container">
-              <div class="avatar-upload-area" @click="triggerFileInput" @dragover.prevent @drop.prevent="handleDrop">
-                <div v-if="!uploading" class="avatar-preview">
-                  <img :src="form.avatar" alt="头像" class="avatar-image" />
-                  <SvgIcon class="overlay-icon" name="edit" width="30" height="30" />
-                </div>
-                <div v-else class="upload-loading">
-                  <div class="loading-spinner"></div>
-                  <span class="loading-text">上传中...</span>
-                </div>
-              </div>
-              <input ref="fileInput" type="file" accept="image/*" @change="handleFileSelect" style="display: none;" />
+            <div class="avatar-readonly-container">
+              <img :src="form.avatar" alt="头像" class="avatar-image" />
+              <p class="avatar-readonly-hint">头像已改为跟随登录账号来源，暂不支持上传或手动修改。</p>
             </div>
           </div>
 
@@ -154,10 +145,6 @@
   </div>
 
 
-  <CropModal :visible="showCropModal" :image-src="cropImageSrc" :uploading="uploading" @close="closeCropModal"
-    @confirm="handleCropConfirm" />
-
-
   <div v-if="showEmojiPanel" class="emoji-panel-overlay" v-click-outside.mousedown="closeEmojiPanel"
     v-escape-key="closeEmojiPanel">
     <div class="emoji-panel" @mousedown.stop>
@@ -177,21 +164,16 @@
 <script setup>
 import { ref, reactive, nextTick, watch, inject, computed, onMounted } from 'vue'
 import SvgIcon from '@/components/SvgIcon.vue'
-import { imageUploadApi, authApi } from '@/api/index.js'
-import Cropper from 'cropperjs'
-import 'cropperjs/dist/cropper.css'
+import { authApi } from '@/api/index.js'
 import EmojiPicker from '@/components/EmojiPicker.vue'
 import DropdownSelect from '@/components/DropdownSelect.vue'
 import MbtiPicker from '@/components/MbtiPicker.vue'
 import MentionModal from '@/components/mention/MentionModal.vue'
 import ContentEditableInput from '@/components/ContentEditableInput.vue'
-import CropModal from './CropModal.vue'
 import { useScrollLock } from '@/composables/useScrollLock'
 import { sanitizeContent } from '@/utils/contentSecurity'
 import { useUserStore } from '@/stores/user.js'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
-import { apiConfig } from '@/config/api'
-import { formatFileSize } from '@/utils/fileSize'
 
 const props = defineProps({
   visible: {
@@ -336,8 +318,7 @@ const form = reactive({
   mbti: '',
   education: '',
   major: '',
-  interests: [],
-  avatarBlob: null // 存储裁剪后的图片blob
+  interests: []
 })
 
 // 兴趣爱好相关
@@ -352,10 +333,6 @@ const mentionUsers = ref([
   { id: 5, user_id: 'user005', username: 'eve', nickname: '夏娃', avatar: 'https://picsum.photos/40/40?random=5' }
 ])
 
-// 头像上传相关
-const fileInput = ref(null)
-const uploading = ref(false)
-const avatarError = ref('')
 const saving = ref(false)
 
 // 选项数据
@@ -425,12 +402,6 @@ const mbtiDimensions = [
   }
 ]
 
-// 裁剪相关
-const showCropModal = ref(false)
-const cropImageSrc = ref('')
-const cropImage = ref(null)
-const cropper = ref(null)
-
 // 表情相关
 const showEmojiPanel = ref(false)
 const bioTextarea = ref(null)
@@ -480,19 +451,10 @@ watch(() => props.visible, (newValue) => {
       form.interests = []
     }
 
-    avatarError.value = ''
     newInterest.value = ''
   } else {
     // 解锁滚动
     unlock()
-  }
-})
-
-// 监听裁剪模态框显示状态
-watch(showCropModal, (newValue) => {
-  if (!newValue && cropper.value) {
-    cropper.value.destroy()
-    cropper.value = null
   }
 })
 
@@ -503,110 +465,6 @@ watch(() => form.bio, (newValue) => {
     form.bio = newValue.substring(0, 200)
   }
 })
-
-// 头像上传相关方法
-const triggerFileInput = () => {
-  fileInput.value?.click()
-}
-
-const handleFileSelect = (event) => {
-  const file = event.target.files[0]
-  if (file) {
-    showCropDialog(file)
-  }
-}
-
-const handleDrop = (event) => {
-  event.preventDefault()
-  const files = event.dataTransfer.files
-  if (files.length > 0) {
-    showCropDialog(files[0])
-  }
-}
-
-const validateFile = (file) => {
-  const validTypes = apiConfig.upload.image.allowedTypes
-  const maxSize = apiConfig.upload.image.maxFileSize
-
-  if (!validTypes.includes(file.type)) {
-    const errorMsg = '不填有效的图片格式 (JPEG, PNG, GIF, WebP)'
-    avatarError.value = errorMsg
-    $message.error(errorMsg)
-    return false
-  }
-
-  if (file.size > maxSize) {
-    const errorMsg = `图片大小为 ${formatFileSize(file.size)}，超过 ${formatFileSize(apiConfig.upload.image.maxFileSize)} 限制，不填更小的图片`
-
-    avatarError.value = `图片大小不能超过 ${formatFileSize(apiConfig.upload.image.maxFileSize)}`
-    $message.error(errorMsg)
-    return false
-  }
-
-  return true
-}
-
-const showCropDialog = async (file) => {
-  if (!validateFile(file)) {
-    return
-  }
-
-  avatarError.value = ''
-
-  try {
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      cropImageSrc.value = e.target.result
-      showCropModal.value = true
-
-      nextTick(() => {
-        if (cropImage.value) {
-          cropper.value = new Cropper(cropImage.value, {
-            aspectRatio: 1,
-            viewMode: 1,
-            dragMode: 'move',
-            autoCropArea: 0.8,
-            restore: false,
-            guides: false,
-            center: false,
-            highlight: false,
-            cropBoxMovable: true,
-            cropBoxResizable: true,
-            toggleDragModeOnDblclick: false,
-          })
-        }
-      })
-    }
-    reader.readAsDataURL(file)
-  } catch (error) {
-    console.error('文件读取失败:', error)
-    avatarError.value = '文件读取失败，请重试'
-  }
-}
-
-const closeCropModal = () => {
-  showCropModal.value = false
-  cropImageSrc.value = ''
-  if (fileInput.value) {
-    fileInput.value.value = ''
-  }
-}
-
-const handleCropConfirm = async (blob) => {
-  try {
-    // 将裁剪后的图片转换为base64，暂存在form中
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      form.avatar = e.target.result
-      form.avatarBlob = blob // 保存blob用于后续上传
-      closeCropModal()
-    }
-    reader.readAsDataURL(blob)
-  } catch (error) {
-    console.error('处理图片失败:', error)
-    avatarError.value = '处理图片失败，请重试'
-  }
-}
 
 // 表情相关方法
 const toggleEmojiPanel = () => {
@@ -753,33 +611,15 @@ const handleSave = async () => {
   saving.value = true
 
   try {
-    const formData = { ...form }
-    formData.bio = sanitizedBio
-    delete formData.avatarBlob
-    delete formData.location
-    if (form.avatarBlob) {
-      uploading.value = true
-
-      try {
-        const result = await imageUploadApi.uploadCroppedImage(form.avatarBlob, {
-          filename: 'avatar.png'
-        })
-
-        if (result.success) {
-          formData.avatar = result.data.url
-          console.log('头像上传成功:', result.data.url)
-        } else {
-          console.error('头像上传失败:', result.message)
-          avatarError.value = result.message || '头像上传失败，请重试'
-          return
-        }
-      } catch (error) {
-        console.error('头像上传异常:', error)
-        avatarError.value = '头像上传失败，请重试'
-        return
-      } finally {
-        uploading.value = false
-      }
+    const formData = {
+      nickname: form.nickname.trim(),
+      bio: sanitizedBio,
+      gender: form.gender || '',
+      zodiac_sign: form.zodiac_sign || '',
+      mbti: form.mbti || '',
+      education: form.education || '',
+      major: form.major || '',
+      interests: [...form.interests]
     }
 
     // 触发保存事件并等待父组件处理完成
@@ -1142,93 +982,29 @@ const handleSave = async () => {
 }
 
 
-/* 头像上传样式 */
-.avatar-upload-container {
+/* 头像展示样式 */
+.avatar-readonly-container {
   display: flex;
   flex-direction: column;
   align-items: center;
-}
-
-.avatar-upload-area {
-  position: relative;
-  width: 120px;
-  height: 120px;
-  border: 2px dashed #ddd;
-  border-radius: 50%;
-  cursor: pointer;
-  overflow: hidden;
-  transition: border-color 0.2s;
-}
-
-.avatar-upload-area:hover {
-  border-color: var(--primary-color);
-}
-
-.avatar-preview {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  gap: 12px;
 }
 
 .avatar-image {
-  width: 100%;
-  height: 100%;
+  width: 120px;
+  height: 120px;
   object-fit: cover;
   border-radius: 50%;
-  transition: all 0.3s ease;
+  border: 1px solid var(--border-color-primary);
 }
 
-.overlay-icon {
-  position: absolute;
-  opacity: 0;
-  transition: all 0.3s ease;
-}
-
-.avatar-upload-area:hover .overlay-icon {
-  opacity: 0.7;
-  color: var(--button-text-color);
-  transform: scale(1.2);
-}
-
-.avatar-upload-area:hover .avatar-image {
-  filter: brightness(0.6);
-}
-
-.upload-loading {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: var(--text-color-secondary);
-}
-
-.loading-spinner {
-  width: 24px;
-  height: 24px;
-  border: 2px solid var(--border-color-primary);
-  border-top: 2px solid var(--primary-color);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 8px;
-}
-
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
-.loading-text {
+.avatar-readonly-hint {
+  margin: 0;
+  text-align: center;
   font-size: 12px;
+  line-height: 1.6;
   color: var(--text-color-secondary);
+  max-width: 280px;
 }
 
 .form-actions {

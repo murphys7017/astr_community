@@ -470,9 +470,6 @@ const resetFormData = () => {
 
   // 为笔记类型初始化必要的字段
   if (props.apiEndpoint === '/admin/posts') {
-    newFormData.type = 1  // 默认图文笔记类型，确保图片上传字段可见
-    newFormData.image_urls = []
-    newFormData.images = []
     newFormData.tags = []
   }
 
@@ -754,31 +751,8 @@ const editItem = async (item) => {
             } else {
               newFormData[key] = []
             }
-          } else if (key === 'images') {
-            // 根据笔记类型处理媒体字段
-            if (fullItem.type === 2) {
-              // 视频笔记：设置分离的视频字段，并构造video_upload对象用于显示
-              const videoUrl = Array.isArray(fullItem[key]) && fullItem[key].length > 0 ? fullItem[key][0] : ''
-              newFormData['video_url'] = videoUrl
-              newFormData['cover_url'] = fullItem.cover_url || ''
-
-              if (videoUrl) {
-                newFormData['video_upload'] = {
-                  url: videoUrl,
-                  coverUrl: fullItem.cover_url,
-                  name: '已上传的视频',
-                  size: 0,
-                  uploaded: true,
-                  preview: videoUrl
-                }
-              } else {
-                newFormData['video_upload'] = null
-              }
-              newFormData[key] = []  // 清空images字段
-            } else {
-              // 图文笔记：对于MultiImageUpload组件，直接设置images字段
-              newFormData[key] = Array.isArray(fullItem[key]) ? fullItem[key] : []
-            }
+          } else if (['images', 'image_urls', 'video_upload', 'video', 'video_url', 'cover_url', 'type'].includes(key)) {
+            return
           } else {
             newFormData[key] = fullItem[key]
           }
@@ -800,19 +774,8 @@ const editItem = async (item) => {
             } else {
               newFormData[key] = []
             }
-          } else if (key === 'images') {
-            // 根据笔记类型处理媒体字段
-            if (item.type === 2) {
-              // 视频笔记：设置分离的视频字段
-              const videoUrl = Array.isArray(item[key]) && item[key].length > 0 ? item[key][0] : ''
-              newFormData['video_url'] = videoUrl
-              newFormData['cover_url'] = item.cover_url || ''
-              newFormData['video_upload'] = videoUrl
-              newFormData[key] = []  // 清空images字段
-            } else {
-              // 图文笔记：对于MultiImageUpload组件，直接设置images字段
-              newFormData[key] = Array.isArray(item[key]) ? item[key] : []
-            }
+          } else if (['images', 'image_urls', 'video_upload', 'video', 'video_url', 'cover_url', 'type'].includes(key)) {
+            return
           } else {
             newFormData[key] = item[key]
           }
@@ -833,31 +796,8 @@ const editItem = async (item) => {
           } else {
             newFormData[key] = []
           }
-        } else if (key === 'images') {
-          // 根据笔记类型处理媒体字段
-          if (item.type === 2) {
-            // 视频笔记：设置分离的视频字段，并构造video_upload对象用于显示
-            const videoUrl = Array.isArray(item[key]) && item[key].length > 0 ? item[key][0] : ''
-            newFormData['video_url'] = videoUrl
-            newFormData['cover_url'] = item.cover_url || ''
-
-            if (videoUrl) {
-              newFormData['video_upload'] = {
-                url: videoUrl,
-                coverUrl: item.cover_url,
-                name: '已上传的视频',
-                size: 0,
-                uploaded: true,
-                preview: videoUrl
-              }
-            } else {
-              newFormData['video_upload'] = null
-            }
-            newFormData[key] = []  // 清空images字段
-          } else {
-            // 图文笔记：对于MultiImageUpload组件，直接设置images字段
-            newFormData[key] = Array.isArray(item[key]) ? item[key] : []
-          }
+        } else if (['images', 'image_urls', 'video_upload', 'video', 'video_url', 'cover_url', 'type'].includes(key)) {
+          return
         } else {
           newFormData[key] = item[key]
         }

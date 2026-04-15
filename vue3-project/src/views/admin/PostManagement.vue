@@ -31,7 +31,7 @@ const columns = [
   { key: 'title', label: '标题', type: 'content', sortable: false },
   { key: 'user_display_id', label: 'AstrBot ID', type: 'user-link', sortable: false },
   { key: 'category', label: '分类', sortable: false },
-  { key: 'type', label: '类型', type: 'mapped', map: { 1: '图文', 2: '视频' }, sortable: false },
+  { key: 'type', label: '类型', type: 'mapped', map: { 1: '文本', 2: '历史视频' }, sortable: false },
   {
     key: 'status',
     label: '状态',
@@ -67,16 +67,6 @@ const formFields = computed(() => {
       options: categories.value.map(cat => ({ value: cat.id, label: cat.name }))
     },
     {
-      key: 'type',
-      label: '笔记类型',
-      type: 'select',
-      required: true,
-      options: [
-        { value: 1, label: '图文笔记' },
-        { value: 2, label: '视频笔记' }
-      ]
-    },
-    {
       key: 'status',
       label: '笔记状态',
       type: 'select',
@@ -92,12 +82,6 @@ const formFields = computed(() => {
     { key: 'view_count', label: '浏览量', type: 'number', required: false, placeholder: '请输入浏览量', min: 0 },
     { key: 'tags', label: '标签', type: 'tags', maxTags: 10 }
   ]
-
-  // 根据笔记类型添加不同的媒体上传字段
-  baseFields.push(
-    { key: 'images', label: '图片上传', type: 'multi-image-upload', maxImages: 9, condition: { field: 'type', value: 1 } },
-    { key: 'video_upload', label: '视频上传', type: 'video-upload', condition: { field: 'type', value: 2 } }
-  )
 
   return baseFields
 })
@@ -122,8 +106,8 @@ const searchFields = computed(() => [
     placeholder: '选择类型',
     options: [
       { value: '', label: '全部类型' },
-      { value: '1', label: '图文' },
-      { value: '2', label: '视频' }
+      { value: '1', label: '文本' },
+      { value: '2', label: '历史视频' }
     ]
   },
   {

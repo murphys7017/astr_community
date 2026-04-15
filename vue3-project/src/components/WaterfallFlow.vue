@@ -133,17 +133,21 @@ const getShortestColumnIndex = () => {
 
 // 估算item高度（用于初始布局）
 const estimateItemHeight = (item) => {
-    // 基础高度：图片区域 + 标题 + 底部信息
-    const baseHeight = 200 // 图片最小高度
+    const hasImage = Boolean(item.image)
+    const baseHeight = hasImage ? 200 : 72
     const bottomHeight = 50 // 底部信息区域高度
 
     // 根据标题长度调整高度
     const titleLines = Math.ceil(item.title.length / 20) // 估算标题行数
     const adjustedTitleHeight = Math.min(titleLines * 20, 40) // 最多2行
 
+    const previewText = getCardPreview(item.content)
+    const previewLines = hasImage ? 0 : Math.min(Math.ceil(previewText.length / 18), 3)
+    const previewHeight = hasImage ? 0 : previewLines * 18 + 16
+
     // 根据图片比例调整高度（如果有的话）
     let imageHeight = baseHeight
-    if (item.aspectRatio) {
+    if (hasImage && item.aspectRatio) {
         // 假设容器宽度，计算图片高度
         const containerWidth = window.innerWidth >= 900 ?
             (window.innerWidth - 60) / 4 : // 4列布局
@@ -151,7 +155,7 @@ const estimateItemHeight = (item) => {
         imageHeight = Math.min(containerWidth / item.aspectRatio, 400)
     }
 
-    return imageHeight + adjustedTitleHeight + bottomHeight
+    return imageHeight + adjustedTitleHeight + previewHeight + bottomHeight
 }
 
 // 将内容分配到列中（优化版）
@@ -204,6 +208,14 @@ const getOrEstimateItemHeight = (item) => {
     const estimatedHeight = estimateItemHeight(item)
     itemHeights.value[item.id] = estimatedHeight
     return estimatedHeight
+}
+
+const getCardPreview = (content = '') => {
+    return String(content || '')
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
 }
 
 // 当图片加载完成后，更新实际高度（优化版）
@@ -296,7 +308,7 @@ async function initContent() {
         content.forEach(item => {
             // 如果该item已经有加载状态，保留它；否则初始化为false
             loadingStates[item.id] = itemLoadingStates.value[item.id] || {
-                imageLoaded: false,
+                imageLoaded: !item.image,
                 avatarLoaded: false
             }
         })
@@ -381,7 +393,7 @@ async function loadMoreContent() {
         const newLoadingStates = {}
         newContent.forEach(item => {
             newLoadingStates[item.id] = {
-                imageLoaded: false,
+                imageLoaded: !item.image,
                 avatarLoaded: false
             }
         })
@@ -915,13 +927,17 @@ function handleImageError(event) {
 
 
                     <div class="item-content" :class="{ 'content-hidden': !isItemFullyLoaded(item.id) }">
-                        <div class="content-img" @click="onCardClick(item, $event)">
+                        <div v-if="item.image" class="content-img" @click="onCardClick(item, $event)">
                             <img v-img-lazy="item.image" alt="" class="lazy-image" @error="handleImageError"
                                 @load="onImageLoaded(item.id, 'imageLoaded')">
                             <!-- 视频笔记标志 -->
                             <div v-if="item.type === 2" class="video-indicator">
                                 <SvgIcon name="play" width="12" height="12" />
                             </div>
+                        </div>
+                        <div v-else class="content-img content-img--text" @click="onCardClick(item, $event)">
+                            <div class="text-card-badge">纯文本</div>
+                            <p class="text-card-preview">{{ getCardPreview(item.content) || '这是一条纯文本内容' }}</p>
                         </div>
                         <div class="content-title">{{ item.title }}</div>
                         <div class="contentlist">
@@ -1075,6 +1091,40 @@ function handleImageError(event) {
     overflow: hidden;
     /* 确保图片容器有正确的层级 */
     z-index: 1;
+}
+
+.content-img--text {
+    min-height: 140px;
+    padding: 14px;
+    border-radius: 14px;
+    border: 1px solid var(--border-color-primary);
+    background:
+        linear-gradient(160deg, rgba(44, 120, 92, 0.14), rgba(44, 120, 92, 0.04)),
+        var(--bg-color-secondary);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.text-card-badge {
+    align-self: flex-start;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.text-card-preview {
+    margin: 0;
+    color: var(--text-color-primary);
+    font-size: 14px;
+    line-height: 1.7;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 /* 视频笔记标志样式 */

@@ -7,6 +7,10 @@ const NotificationHelper = require('../utils/notificationHelper');
 const { extractMentionedUsers, hasMentions } = require('../utils/mentionParser');
 const { sanitizeContent } = require('../utils/contentSecurity');
 
+const BLOCKED_MEDIA_TAG_REGEX = /<(img|video|audio|iframe)\b/i;
+
+const hasEmbeddedMediaMarkup = (content = '') => BLOCKED_MEDIA_TAG_REGEX.test(content);
+
 // 递归删除评论及其子评论，返回删除的评论总数
 async function deleteCommentRecursive(commentId) {
   let deletedCount = 0;
@@ -114,6 +118,13 @@ router.post('/', authenticateToken, async (req, res) => {
 
     // 对内容进行安全过滤，防止XSS攻击
     const sanitizedContent = sanitizeContent(content);
+
+    if (hasEmbeddedMediaMarkup(sanitizedContent)) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        code: RESPONSE_CODES.VALIDATION_ERROR,
+        message: '评论暂不支持图片或媒体内容，请改用纯文本或外链'
+      });
+    }
     
     // 再次验证过滤后的内容不为空
     if (!sanitizedContent.trim()) {

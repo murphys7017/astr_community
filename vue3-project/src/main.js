@@ -3,7 +3,7 @@
  * 
  * @author ZTMYO
  * @github https://github.com/ZTMYO
- * @description 基于Vue3+Vite+Pinia的现代化图文社区前端应用
+ * @description 基于Vue3+Vite+Pinia的现代化轻量文本社区前端应用
  * @version v1.3.2
  * @license GPLv3
  */

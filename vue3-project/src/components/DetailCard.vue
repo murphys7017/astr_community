@@ -20,7 +20,7 @@
       </button>
 
       <div class="detail-content">
-        <div class="image-section" :style="{ width: imageSectionWidth + 'px' }" @mouseenter="showImageControls = true"
+        <div v-if="hasVisualMedia" class="image-section" :style="{ width: imageSectionWidth + 'px' }" @mouseenter="showImageControls = true"
           @mouseleave="showImageControls = false">
           <!-- 视频播放器（桌面端） -->
           <div v-if="props.item.type === 2" class="video-container">
@@ -323,7 +323,7 @@
               <div class="input-row">
                 <div class="input-wrapper">
                   <div v-if="replyingTo" class="reply-status">
-                    <div class="reply-status-content">
+                  <div class="reply-status-content">
                       <div class="reply-first-line">
                         回复 <span class="reply-username">{{ replyingTo.username }}</span>
                       </div>
@@ -335,7 +335,7 @@
                   <ContentEditableInput ref="focusedInput" v-model="commentInput" :input-class="'comment-input'"
                     :placeholder="replyingTo ? `回复 ${replyingTo.username}：` : '说点什么...'" :enable-mention="true"
                     :mention-users="mentionUsers" :enable-ctrl-enter-send="true" @focus="handleInputFocus"
-                    @mention="handleMentionInput" @paste-image="handlePasteImage" @send="handleSendComment" />
+                    @mention="handleMentionInput" @send="handleSendComment" />
                 </div>
 
 
@@ -359,18 +359,6 @@
                 </div>
               </div>
 
-              <!-- 上传图片预览区域 -->
-              <div v-if="uploadedImages.length > 0" class="uploaded-images-section">
-                <div class="uploaded-images-grid">
-                  <div v-for="(image, index) in uploadedImages" :key="index" class="uploaded-image-item">
-                    <img :src="image.url || image.preview" :alt="`上传图片${index + 1}`" class="uploaded-image" />
-                    <button class="remove-image-btn" @click="removeUploadedImage(index)">
-                      <SvgIcon name="close" width="16" height="16" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-
               <div class="focused-actions-section">
                 <div class="emoji-section">
                   <button class="mention-btn" @click="toggleMentionPanel">
@@ -379,14 +367,11 @@
                   <button class="emoji-btn" @click="toggleEmojiPanel">
                     <SvgIcon name="emoji" class="emoji-icon" width="24" height="24" />
                   </button>
-                  <button class="image-btn" @click="toggleImageUpload">
-                    <SvgIcon name="imgNote" class="image-icon" width="24" height="24" />
-                  </button>
                 </div>
                 <div class="send-cancel-buttons">
                   <button class="send-btn" @click="handleSendComment"
-                    :disabled="(!commentInput || !commentInput.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim()) && uploadedImages.length === 0 || !allImagesUploaded">
-                    {{ uploadedImages.length > 0 && !allImagesUploaded ? '上传中' : '发送' }}
+                    :disabled="!commentInput || !commentInput.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim()">
+                    发送
                   </button>
                   <button class="cancel-btn" @click="handleCancelInput">
                     取消
@@ -411,10 +396,6 @@
     </div>
     <MentionModal :visible="showMentionPanel" @close="closeMentionPanel" @select="handleMentionSelect" />
 
-    <!-- 图片上传模态框 -->
-    <ImageUploadModal :visible="showImageUpload" :model-value="uploadedImages" @close="closeImageUpload"
-      @confirm="handleImageUploadConfirm" @update:model-value="handleImageUploadChange" />
-
     <!-- 帖子图片查看器 -->
     <ImageViewer :visible="showImageViewer" :images="imageList" :initial-index="currentImageIndex" image-type="post"
       @close="closeImageViewer" @change="handleImageIndexChange" />
@@ -436,7 +417,6 @@ import EmojiPicker from '@/components/EmojiPicker.vue'
 import MentionModal from '@/components/mention/MentionModal.vue'
 import ContentRenderer from './ContentRenderer.vue'
 import ContentEditableInput from './ContentEditableInput.vue'
-import ImageUploadModal from './modals/ImageUploadModal.vue'
 import ImageViewer from './ImageViewer.vue'
 import VerifiedBadge from './VerifiedBadge.vue'
 import { useThemeStore } from '@/stores/theme'
@@ -447,7 +427,7 @@ import { useFollowStore } from '@/stores/follow.js'
 import { useAuthStore } from '@/stores/auth'
 import { useCommentStore } from '@/stores/comment'
 import { useCommentLikeStore } from '@/stores/commentLike'
-import { commentApi, userApi, postApi, imageUploadApi } from '@/api/index.js'
+import { commentApi, userApi, postApi } from '@/api/index.js'
 import { getPostDetail } from '@/api/posts.js'
 import { useScrollLock } from '@/composables/useScrollLock'
 import { formatTime } from '@/utils/timeFormat'
@@ -750,8 +730,6 @@ const hasTriggeredBottom = ref(false) // 追踪是否已触发底部事件
 // 加载状态（防止重复请求）
 const isLoadingMore = ref(false)
 const showMentionPanel = ref(false)
-const showImageUpload = ref(false)
-const uploadedImages = ref([])
 
 
 
@@ -764,6 +742,10 @@ const contentSectionWidth = computed(() => {
     return windowWidth.value
   }
 
+  if (!hasVisualMedia.value) {
+    return Math.min(760, Math.floor(windowWidth.value * 0.9))
+  }
+
   const maxTotalWidth = windowWidth.value * 0.95
   const minContentWidth = 350
   const maxContentWidth = 400
@@ -774,7 +756,7 @@ const contentSectionWidth = computed(() => {
 })
 
 const cardWidth = computed(() => {
-  return imageSectionWidth.value + contentSectionWidth.value
+  return hasVisualMedia.value ? imageSectionWidth.value + contentSectionWidth.value : contentSectionWidth.value
 })
 
 const animationStyle = computed(() => {
@@ -799,7 +781,7 @@ const authorData = computed(() => {
   return {
     id: userId,
     name: props.item.nickname || props.item.author || '匿名用户',
-    avatar: props.item.user_avatar || props.item.avatar || new URL('@/assets/imgs/未加载.png', import.meta.url).href,
+    avatar: props.item.user_avatar || props.item.avatar || defaultAvatar,
     verified: props.item.verified || props.item.author_verified || 0,
     isFollowing: followState.followed,
     buttonType: followState.buttonType
@@ -847,8 +829,10 @@ const imageList = computed(() => {
   if (props.item.image) {
     return [props.item.image]
   }
-  return [new URL('@/assets/imgs/未加载.png', import.meta.url).href]
+  return []
 })
+
+const hasVisualMedia = computed(() => props.item.type === 2 || imageList.value.length > 0)
 
 const hasMultipleImages = computed(() => imageList.value.length > 1)
 
@@ -1350,7 +1334,7 @@ const toggleCollect = async () => {
 
 const handleShare = async () => {
   try {
-    const shareUrl = `【${props.item.title}-${props.item.author}| AstrBot Community - 插件分享社区】${window.location.origin}/post?id=${props.item.id}`
+    const shareUrl = `【${props.item.title}-${props.item.author}| AstrBot Community - 轻量文本社区】${window.location.origin}/post?id=${props.item.id}`
 
     // 检查是否支持现代剪贴板API
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -1488,117 +1472,6 @@ const closeMentionPanel = () => {
     focusedInput.value.convertAtMarkerToText()
   }
   showMentionPanel.value = false
-}
-
-// 图片上传面板切换
-const toggleImageUpload = () => {
-  // 检查用户是否已登录
-  if (!userStore.isLoggedIn) {
-    authStore.openLoginModal()
-    return
-  }
-
-  showImageUpload.value = !showImageUpload.value
-}
-
-const closeImageUpload = () => {
-  showImageUpload.value = false
-}
-
-// 处理图片上传确认
-const handleImageUploadConfirm = async (images) => {
-  // 先设置图片到uploadedImages
-  uploadedImages.value = images
-  showImageUpload.value = false
-
-  // 只上传新添加的图片（没有uploaded标记或uploaded为false的图片）
-  const newImages = images.filter(img => !img.uploaded)
-
-  if (newImages.length > 0) {
-    try {
-      const files = newImages.map(img => img.file)
-      const uploadResult = await imageUploadApi.uploadImages(files)
-
-      if (uploadResult.success && uploadResult.data && uploadResult.data.uploaded) {
-        // 更新新上传图片的状态和URL
-        let uploadIndex = 0
-        uploadedImages.value.forEach((img, index) => {
-          if (!img.uploaded && uploadIndex < uploadResult.data.uploaded.length) {
-            uploadedImages.value[index].uploaded = true
-            uploadedImages.value[index].url = uploadResult.data.uploaded[uploadIndex].url
-            uploadIndex++
-          }
-        })
-        showMessage('图片上传成功', 'success')
-      } else {
-        throw new Error('图片上传失败')
-      }
-    } catch (error) {
-      console.error('图片上传失败:', error)
-      showMessage('图片上传失败，请重试', 'error')
-      // 上传失败时只移除新添加的图片，保留已上传的图片
-      uploadedImages.value = uploadedImages.value.filter(img => img.uploaded)
-    }
-  }
-}
-
-// 处理图片上传变化
-const handleImageUploadChange = (images) => {
-  uploadedImages.value = images
-}
-
-// 处理粘贴图片
-const handlePasteImage = async (file) => {
-  try {
-    // 验证图片文件
-    const validation = imageUploadApi.validateImageFile(file)
-    if (!validation.valid) {
-      showMessage(validation.error, 'error')
-      return
-    }
-
-    // 创建图片预览
-    const preview = await imageUploadApi.createImagePreview(file)
-
-    // 添加到上传图片列表（先显示预览）
-    const newImage = {
-      file: file,
-      preview: preview,
-      uploaded: false,
-      url: null
-    }
-
-    uploadedImages.value.push(newImage)
-    showMessage('正在上传图片...', 'info')
-
-    // 直接上传到图床
-    const uploadResult = await imageUploadApi.uploadImage(file)
-    if (uploadResult.success) {
-      // 更新图片状态为已上传
-      const imageIndex = uploadedImages.value.length - 1
-      uploadedImages.value[imageIndex].uploaded = true
-      uploadedImages.value[imageIndex].url = uploadResult.data.url
-      showMessage('图片上传成功', 'success')
-    } else {
-      // 上传失败，移除图片
-      uploadedImages.value.pop()
-      showMessage(uploadResult.message || '图片上传失败', 'error')
-    }
-  } catch (error) {
-    console.error('处理粘贴图片失败:', error)
-    // 如果有添加的图片，移除它
-    if (uploadedImages.value.length > 0) {
-      uploadedImages.value.pop()
-    }
-    showMessage('处理图片失败，请重试', 'error')
-  }
-}
-
-// 删除上传的图片
-const removeUploadedImage = (index) => {
-  uploadedImages.value.splice(index, 1)
-  // 不需要调用handleImageUploadChange，因为uploadedImages已经是响应式的
-  // ImageUploadModal会通过watch监听props.modelValue的变化自动同步
 }
 
 // 输入框键盘事件处理
@@ -2215,18 +2088,10 @@ const handleSendComment = async () => {
     return
   }
 
-  // 检查是否有内容或图片（使用与按钮相同的验证逻辑）
   const rawContent = commentInput.value || ''
-  // 移除所有HTML标签和&nbsp;后检查是否为空
   const textContent = rawContent.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim()
-  if (!textContent && uploadedImages.value.length === 0) {
-    showMessage('请输入评论内容或上传图片', 'error')
-    return
-  }
-
-  // 检查图片是否都已上传完成
-  if (uploadedImages.value.length > 0 && !allImagesUploaded.value) {
-    showMessage('图片上传中，请稍候', 'error')
+  if (!textContent) {
+    showMessage('请输入评论内容', 'error')
     return
   }
 
@@ -2236,33 +2101,17 @@ const handleSendComment = async () => {
   // 保存原始输入和回复状态，用于失败时恢复
   const savedInput = commentInput.value
   const savedReplyingTo = replyingTo.value
-  const savedUploadedImages = [...uploadedImages.value]
 
   // 清空输入状态
   commentInput.value = ''
   replyingTo.value = null
-  uploadedImages.value = []
   showEmojiPanel.value = false
   showMentionPanel.value = false
-  showImageUpload.value = false
 
   try {
-
-    // 收集已上传的图片URL（从保存的数据中获取）
-    const imageUrls = savedUploadedImages
-      .filter(img => img.uploaded && img.url)
-      .map(img => img.url)
-
-    // 构建评论内容 - 直接使用原始内容，服务端会进行过滤
-    let finalContent = savedInput.trim()
-    if (imageUrls.length > 0) {
-      const imageHtml = imageUrls.map(url => `<img src="${url}" alt="评论图片" class="comment-image" />`).join('')
-      finalContent = finalContent ? `${finalContent}${imageHtml}` : imageHtml
-    }
-
     const commentData = {
       post_id: props.item.id,
-      content: finalContent,
+      content: savedInput.trim(),
       parent_id: savedReplyingTo ? savedReplyingTo.commentId : null
     }
 
@@ -2273,13 +2122,6 @@ const handleSendComment = async () => {
 
       // 获取新评论的ID
       const newCommentId = response.data?.id
-
-      // 清理图片缓存
-      savedUploadedImages.forEach(img => {
-        if (img.url && img.url.startsWith('blob:')) {
-          URL.revokeObjectURL(img.url)
-        }
-      })
 
       // 如果有新评论ID，直接添加到评论列表并定位
       if (newCommentId) {
@@ -2353,52 +2195,26 @@ const handleSendComment = async () => {
         await fetchComments()
       }
     } else {
-      // 发送失败，清理图片缓存并恢复之前的状态
-      savedUploadedImages.forEach(img => {
-        if (img.url && img.url.startsWith('blob:')) {
-          URL.revokeObjectURL(img.url)
-        }
-      })
-
-
       commentInput.value = savedInput
       replyingTo.value = savedReplyingTo
-      uploadedImages.value = savedUploadedImages
       isInputFocused.value = true
       showMessage(response.message || '发送失败，请重试', 'error')
     }
   } catch (error) {
     console.error('发送评论失败:', error)
-    // 发送失败，清理图片缓存并恢复之前的状态
-    savedUploadedImages.forEach(img => {
-      if (img.url && img.url.startsWith('blob:')) {
-        URL.revokeObjectURL(img.url)
-      }
-    })
-
-
     commentInput.value = savedInput
     replyingTo.value = savedReplyingTo
-    uploadedImages.value = savedUploadedImages
     isInputFocused.value = true
     showMessage('发送失败，请重试', 'error')
   }
 }
 
-// 计算属性：判断所有图片是否都已上传
-const allImagesUploaded = computed(() => {
-  if (uploadedImages.value.length === 0) return true
-  return uploadedImages.value.every(img => img.uploaded && img.url)
-})
-
 const handleCancelInput = () => {
   commentInput.value = ''
   replyingTo.value = null
-  uploadedImages.value = []
   isInputFocused.value = false
   showEmojiPanel.value = false
   showMentionPanel.value = false
-  showImageUpload.value = false
   // 确保输入框失去焦点
   if (focusedInput.value) {
     focusedInput.value.blur()

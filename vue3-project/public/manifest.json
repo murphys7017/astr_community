@@ -1,5 +1,5 @@
 {
-  "name": "AstrBot Community - 插件分享社区",
+  "name": "AstrBot Community - 轻量文本社区",
   "short_name": "AstrBot",
   "icons": [
     {
@@ -32,5 +32,5 @@
   "display": "standalone",
   "theme_color": "#ff6b6b",
   "background_color": "#ffffff",
-  "description": "AstrBot Community - 插件分享社区"
+  "description": "AstrBot Community - 轻量文本社区"
 }

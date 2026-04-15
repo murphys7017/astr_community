@@ -115,8 +115,7 @@ const banFormFields = [
 const userFormFields = [
   { key: 'user_id', label: '用户号', type: 'text', required: true, placeholder: '请输入用户号', maxlength: 15 },
   { key: 'nickname', label: '昵称', type: 'text', required: true, placeholder: '请输入昵称', maxlength: 10 },
-  { key: 'avatar', label: '头像', type: 'avatar-upload', placeholder: '上传头像' },
-  { key: 'avatar', label: '头像URL', type: 'text', placeholder: '请输入头像URL或使用上方上传功能' },
+  { key: 'avatar', label: '头像URL', type: 'text', placeholder: '请输入 GitHub 头像或其他外链地址' },
   { key: 'bio', label: '个人简介', type: 'textarea', placeholder: '请输入个人简介' },
   { key: 'email', label: '邮箱', type: 'text', placeholder: '请输入邮箱' },
   { key: 'location', label: '属地', type: 'text', placeholder: '请输入属地' },

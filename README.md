@@ -8,7 +8,7 @@
     <b>基于 Express + Vue 前后端分离仿小红书项目</b>
 </p>
 <p align="center">
-    <i>一个高仿小红书的图文社区项目，支持图文发布、社交互动等核心功能，旨在提供从前端到后端的完整实践范本</i>
+    <i>一个以轻量文本交流为主的社区项目，保留完整前后端架构，并逐步收敛为纯文本优先的讨论平台</i>
 <p align="center"><a href="https://www.shiliu.space">演示网站</a> · <a href="https://www.bilibili.com/video/BV1J4agztEBX/?spm_id_from=333.1387.homepage.video_card.click">视频介绍</a>
 </p>
 <p align="center"><a href="https://github.com/ZTMYO/XiaoShiLiu">简体中文</a>|<a href="doc/i18n/README_En.md">English</a>|<a href="doc/i18n/README_zh-Hant.md">繁體中文</a>
@@ -44,7 +44,7 @@
 
 AstrBot Community 基于原项目 [ZTMYO/XiaoShiLiu](https://github.com/ZTMYO/XiaoShiLiu) 二次改造而来。
 
-当前仓库在保留原项目前后端基础能力的前提下，结合 AstrBot 社区场景进行了品牌、文案、分类结构与登录流程等方面的调整。
+当前仓库在保留原项目前后端基础能力的前提下，结合 AstrBot 社区场景进行了品牌、文案、分类结构、登录流程与纯文本社区化方向的调整。
 
 > 📁 **项目结构说明**：本项目包含完整的前后端代码，前端位于 `vue3-project/` 目录，后端位于 `express-project/` 目录。详细结构请查看 [项目结构文档](./doc/PROJECT_STRUCTURE.md)。
 

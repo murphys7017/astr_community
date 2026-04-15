@@ -8,6 +8,23 @@ const { extractMentionedUsers, hasMentions } = require('../utils/mentionParser')
 const { batchCleanupFiles } = require('../utils/fileCleanup');
 const { sanitizeContent } = require('../utils/contentSecurity');
 
+const BLOCKED_MEDIA_TAG_REGEX = /<(img|video|audio|iframe)\b/i;
+
+const hasEmbeddedMediaMarkup = (content = '') => BLOCKED_MEDIA_TAG_REGEX.test(content);
+
+const hasUploadedMediaPayload = (payload = {}) => {
+  const { images, video, type, video_url, cover_url } = payload;
+  const hasImages = Array.isArray(images) && images.some(imageUrl => typeof imageUrl === 'string' && imageUrl.trim());
+  const hasVideoObject = video && typeof video === 'object' &&
+    Object.values(video).some(value => typeof value === 'string' ? value.trim() : Boolean(value));
+  const hasVideoString = typeof video === 'string' && video.trim();
+  const hasSeparateVideoField = typeof video_url === 'string' && video_url.trim();
+  const hasSeparateCoverField = typeof cover_url === 'string' && cover_url.trim();
+  const isVideoType = Number(type) === 2;
+
+  return hasImages || hasVideoObject || hasVideoString || hasSeparateVideoField || hasSeparateCoverField || isVideoType;
+};
+
 // 获取笔记列表
 router.get('/', optionalAuth, async (req, res) => {
   try {
@@ -403,7 +420,7 @@ router.post('/', authenticateToken, async (req, res) => {
   try {
     const { title, content, category_id, images, video, tags, status, type } = req.body;
     const userId = req.user.id;
-    const postType = type || 1; // 默认为图文类型
+    const postType = 1;
 
     console.log('=== 创建笔记请求 ===');
     console.log('用户ID:', userId);
@@ -425,10 +442,20 @@ router.post('/', authenticateToken, async (req, res) => {
     // 对内容进行安全过滤，防止XSS攻击
     const sanitizedContent = content ? sanitizeContent(content) : '';
 
-    // 验证发布类型
-    if (postType !== 1 && postType !== 2) {
-      console.log('❌ 验证失败: 无效的发布类型');
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({ code: RESPONSE_CODES.VALIDATION_ERROR, message: '无效的发布类型' });
+    if (hasEmbeddedMediaMarkup(sanitizedContent)) {
+      console.log('❌ 验证失败: 内容包含媒体标签');
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        code: RESPONSE_CODES.VALIDATION_ERROR,
+        message: '帖子内容暂不支持图片或媒体嵌入，请改用外链'
+      });
+    }
+
+    if (hasUploadedMediaPayload({ images, video, type })) {
+      console.log('❌ 验证失败: 文本社区模式下不支持上传图片或视频');
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        code: RESPONSE_CODES.VALIDATION_ERROR,
+        message: '平台当前仅支持纯文本发帖，图片和视频请改用外链'
+      });
     }
 
     // 插入笔记
@@ -440,60 +467,6 @@ router.post('/', authenticateToken, async (req, res) => {
 
     const postId = result.insertId;
     console.log('✅ 笔记插入成功，ID:', postId);
-
-    // 处理图片（图文类型）
-    if (postType === 1 && images && images.length > 0) {
-      const validUrls = []
-
-      // 处理所有有效的URL
-      for (const imageUrl of images) {
-        if (imageUrl && typeof imageUrl === 'string') {
-          validUrls.push(imageUrl)
-        }
-      }
-
-      // 插入所有有效的图片URL
-      for (const imageUrl of validUrls) {
-        await pool.execute(
-          'INSERT INTO post_images (post_id, image_url) VALUES (?, ?)',
-          [postId.toString(), imageUrl]
-        );
-      }
-    }
-
-    // 处理视频（视频类型）- 修改为单个视频
-    if (postType === 2 && video && video.url && typeof video.url === 'string') {
-      console.log('🎥 开始处理视频数据...');
-      console.log('视频URL:', video.url);
-      console.log('封面URL:', video.coverUrl);
-
-      let coverUrl = video.coverUrl || null;
-      let duration = null;
-
-      // 如果提供了视频缓冲区，提取封面
-      if (video.buffer) {
-        try {
-          console.log('🖼️ 开始提取视频封面...');
-          const thumbnailResult = await extractVideoThumbnail(video.buffer, video.filename || 'video.mp4');
-          if (thumbnailResult.success) {
-            coverUrl = thumbnailResult.coverUrl;
-            console.log('✅ 视频封面提取成功:', coverUrl);
-          } else {
-            console.log('❌ 视频封面提取失败:', thumbnailResult.error);
-          }
-        } catch (error) {
-          console.error('❌ 处理视频封面失败:', error);
-        }
-      }
-
-      // 插入视频记录
-      console.log('💾 插入视频记录到数据库...');
-      await pool.execute(
-        'INSERT INTO post_videos (post_id, video_url, cover_url) VALUES (?, ?, ?)',
-        [postId.toString(), video.url, coverUrl]
-      );
-      console.log('✅ 视频记录插入成功');
-    }
 
     // 处理标签
     if (tags && tags.length > 0) {
@@ -806,7 +779,7 @@ router.post('/:id/collect', authenticateToken, async (req, res) => {
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const postId = req.params.id;
-    const { title, content, category_id, images, video, tags, status } = req.body;
+    const { title, content, category_id, images, video, video_url, cover_url, tags, status, type } = req.body;
     const userId = req.user.id;
 
     // 验证必填字段：如果不是草稿（status=2），则要求标题、内容和分类不能为空
@@ -815,6 +788,13 @@ router.put('/:id', authenticateToken, async (req, res) => {
       return res.status(HTTP_STATUS.BAD_REQUEST).json({ code: RESPONSE_CODES.VALIDATION_ERROR, message: '发布时标题、内容和分类不能为空' });
     }
     const sanitizedContent = content ? sanitizeContent(content) : '';
+
+    if (hasEmbeddedMediaMarkup(sanitizedContent)) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        code: RESPONSE_CODES.VALIDATION_ERROR,
+        message: '帖子内容暂不支持图片或媒体嵌入，请改用外链'
+      });
+    }
 
     // 检查笔记是否存在且属于当前用户
     const [postRows] = await pool.execute(
@@ -830,7 +810,12 @@ router.put('/:id', authenticateToken, async (req, res) => {
       return res.status(HTTP_STATUS.FORBIDDEN).json({ code: RESPONSE_CODES.FORBIDDEN, message: '无权限修改此笔记' });
     }
 
-    const postType = postRows[0].type;
+    if (hasUploadedMediaPayload({ images, video, type, video_url, cover_url })) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        code: RESPONSE_CODES.VALIDATION_ERROR,
+        message: '平台当前仅支持纯文本帖子，暂不支持修改图片或视频内容'
+      });
+    }
 
     // 在更新之前获取原始笔记信息（用于对比@用户变化）
     const [originalPostRows] = await pool.execute('SELECT status, content FROM posts WHERE id = ?', [postId.toString()]);
@@ -843,85 +828,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
       [title || '', sanitizedContent, category_id || null, (status !== undefined ? status : 0).toString(), postId.toString()]
     );
 
-    // 根据笔记类型处理媒体文件
-    if (postType === 2) {
-      // 视频笔记：检查是否有视频相关更新
-      const hasVideoUpdate = video !== undefined || video_url !== undefined || cover_url !== undefined;
-
-      if (hasVideoUpdate) {
-        // 获取原有视频记录
-        const [oldVideoRows] = await pool.execute('SELECT video_url, cover_url FROM post_videos WHERE post_id = ?', [postId.toString()]);
-        const oldVideoData = oldVideoRows.length > 0 ? oldVideoRows[0] : null;
-
-        let newVideoUrl = null;
-        let newCoverUrl = null;
-        let shouldCleanupVideo = false;
-
-        if (video && video.url) {
-          // 有完整的video对象，说明是新上传的视频
-          newVideoUrl = video.url;
-          newCoverUrl = video.coverUrl || null;
-          shouldCleanupVideo = oldVideoData && oldVideoData.video_url !== newVideoUrl;
-        } else if (video_url !== undefined) {
-          // 有分离的video_url字段
-          newVideoUrl = video_url;
-          newCoverUrl = cover_url !== undefined ? cover_url : (oldVideoData ? oldVideoData.cover_url : null);
-          shouldCleanupVideo = oldVideoData && oldVideoData.video_url !== newVideoUrl;
-        } else if (cover_url !== undefined && oldVideoData) {
-          // 仅更新封面，保持原视频URL不变
-          newVideoUrl = oldVideoData.video_url;
-          newCoverUrl = cover_url;
-          shouldCleanupVideo = false; // 仅更新封面，不清理视频文件
-        }
-
-        // 更新数据库记录
-        if (newVideoUrl) {
-          // 删除原有记录
-          await pool.execute('DELETE FROM post_videos WHERE post_id = ?', [postId.toString()]);
-
-          // 插入新记录
-          await pool.execute(
-            'INSERT INTO post_videos (post_id, video_url, cover_url) VALUES (?, ?, ?)',
-            [postId.toString(), newVideoUrl, newCoverUrl]
-          );
-
-          // 只有在视频URL发生变化时才清理旧视频文件
-          if (shouldCleanupVideo && oldVideoData) {
-            const oldVideoUrls = [oldVideoData.video_url].filter(url => url);
-            const oldCoverUrls = [oldVideoData.cover_url].filter(url => url && url !== newCoverUrl);
-
-            if (oldVideoUrls.length > 0 || oldCoverUrls.length > 0) {
-              // 异步清理文件，不阻塞响应
-              batchCleanupFiles(oldVideoUrls, oldCoverUrls).catch(error => {
-                console.error('清理废弃视频文件失败:', error);
-              });
-            }
-          }
-        }
-      }
-    } else {
-      // 图文笔记：删除原有图片并插入新的
-      await pool.execute('DELETE FROM post_images WHERE post_id = ?', [postId.toString()]);
-
-      if (images && images.length > 0) {
-        const validUrls = []
-
-        // 处理所有有效的URL
-        for (const imageUrl of images) {
-          if (imageUrl && typeof imageUrl === 'string') {
-            validUrls.push(imageUrl)
-          }
-        }
-
-        // 插入所有有效的图片URL
-        for (const imageUrl of validUrls) {
-          await pool.execute(
-            'INSERT INTO post_images (post_id, image_url) VALUES (?, ?)',
-            [postId, imageUrl]
-          );
-        }
-      }
-    }
+    // 文本社区模式下不再处理帖子媒体更新，历史媒体内容保持原样
 
     // 获取原有标签列表（在删除前）
     const [oldTagsResult] = await pool.execute(

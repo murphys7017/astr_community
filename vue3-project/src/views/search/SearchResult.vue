@@ -23,8 +23,8 @@ const activeTab = ref('all')
 
 const searchTabs = [
     { id: 'all', label: '全部' },
-    { id: 'posts', label: '图文' },
-    { id: 'videos', label: '视频' },
+    { id: 'posts', label: '文本' },
+    { id: 'videos', label: '历史视频' },
     { id: 'users', label: '用户' }
 ]
 

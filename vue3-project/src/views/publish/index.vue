@@ -27,51 +27,9 @@
       </div>
 
       <form v-if="isLoggedIn" @submit.prevent="handlePublish" class="publish-form">
-        <div class="upload-section">
-          <!-- Tab选项 -->
-          <div class="upload-tabs">
-            <button 
-              type="button" 
-              class="tab-btn" 
-              :class="{ active: uploadType === 'image' }"
-              @click="switchUploadType('image')"
-            >
-              上传图文
-            </button>
-            <button 
-              type="button" 
-              class="tab-btn" 
-              :class="{ active: uploadType === 'video' }"
-              @click="switchUploadType('video')"
-            >
-              上传视频
-            </button>
-          </div>
-
-          <!-- 上传组件 -->
-          <div class="upload-content">
-            <MultiImageUpload 
-              v-if="uploadType === 'image'"
-              ref="multiImageUploadRef" 
-              v-model="form.images" 
-              :max-images="9" 
-              :allow-delete-last="true"
-              @error="handleUploadError" 
-            />
-            <VideoUpload 
-              v-if="uploadType === 'video'"
-              ref="videoUploadRef"
-              v-model="form.video"
-              @error="handleUploadError"
-            />
-          </div>
-
-          <div v-if="uploadType === 'image'" class="text-image-section">
-            <button type="button" class="text-image-btn" @click="openTextImageModal">
-              <SvgIcon name="magic" width="16" height="16" />
-              <span>文字配图</span>
-            </button>
-          </div>
+        <div class="publish-mode-hint">
+          <SvgIcon name="post" width="18" height="18" />
+          <span>当前为纯文本发布模式，图片和视频请改用外链</span>
         </div>
 
         <div class="input-section">
@@ -128,14 +86,11 @@
     </div>
 
     <MessageToast v-if="showToast" :message="toastMessage" :type="toastType" @close="handleToastClose" />
-
-    <!-- 文字配图模态框 -->
-    <TextImageModal :visible="showTextImageModal" @close="closeTextImageModal" @generate="handleTextImageGenerate" />
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useAuthStore } from '@/stores/auth'
@@ -145,8 +100,6 @@ import { getCategories } from '@/api/categories'
 import { useScrollLock } from '@/composables/useScrollLock'
 import { hasMentions, cleanMentions } from '@/utils/mentionParser'
 
-import MultiImageUpload from '@/components/MultiImageUpload.vue'
-import VideoUpload from '@/components/VideoUpload.vue'
 import SvgIcon from '@/components/SvgIcon.vue'
 import TagSelector from '@/components/TagSelector.vue'
 import DropdownSelect from '@/components/DropdownSelect.vue'
@@ -154,7 +107,6 @@ import MessageToast from '@/components/MessageToast.vue'
 import EmojiPicker from '@/components/EmojiPicker.vue'
 import MentionModal from '@/components/mention/MentionModal.vue'
 import ContentEditableInput from '@/components/ContentEditableInput.vue'
-import TextImageModal from '@/views/publish/components/TextImageModal.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -163,19 +115,13 @@ const authStore = useAuthStore()
 const navigationStore = useNavigationStore()
 const { lock, unlock } = useScrollLock()
 
-const multiImageUploadRef = ref(null)
-const videoUploadRef = ref(null)
 const contentTextarea = ref(null)
-
-// 上传类型状态
-const uploadType = ref('image') // 'image' 或 'video'
 
 const isPublishing = ref(false)
 const isSavingDraft = ref(false)
 const showEmojiPanel = ref(false)
 const showMentionPanel = ref(false)
 const isContentFocused = ref(false)
-const showTextImageModal = ref(false)
 
 const showToast = ref(false)
 const toastMessage = ref('')
@@ -184,8 +130,6 @@ const toastType = ref('success')
 const form = reactive({
   title: '',
   content: '',
-  images: [],
-  video: null,
   tags: [],
   category_id: null
 })
@@ -200,43 +144,11 @@ const categories = ref([])
 const mentionUsers = ref([])
 
 const canPublish = computed(() => {
-  // 检查必填字段：标题、内容、分类
-  if (!form.title.trim() || !form.content.trim() || !form.category_id) {
-    return false
-  }
-  
-  if (uploadType.value === 'image') {
-    // 检查图片上传组件是否有待上传的图片
-    if (!multiImageUploadRef.value) return false
-    return multiImageUploadRef.value.getImageCount() > 0
-  } else if (uploadType.value === 'video') {
-    // 检查视频组件是否有待上传的视频
-    if (!videoUploadRef.value) return false
-    const videoData = videoUploadRef.value.getVideoData()
-    return videoData && (videoData.uploaded || videoData.file)
-  }
-  
-  return false
+  return Boolean(form.title.trim() && form.content.trim() && form.category_id)
 })
 
 const canSaveDraft = computed(() => {
-  // 草稿保存条件：有标题或内容，并且有媒体文件
-  const hasContent = form.title.trim() || form.content.trim()
-  
-  if (!hasContent) return false
-  
-  if (uploadType.value === 'image') {
-    // 检查图片上传组件是否有待上传的图片
-    if (!multiImageUploadRef.value) return false
-    return multiImageUploadRef.value.getImageCount() > 0
-  } else if (uploadType.value === 'video') {
-    // 检查视频组件是否有待上传的视频
-    if (!videoUploadRef.value) return false
-    const videoData = videoUploadRef.value.getVideoData()
-    return videoData && (videoData.uploaded || videoData.file)
-  }
-  
-  return false
+  return Boolean(form.title.trim() || form.content.trim())
 })
 
 // 登录状态检查
@@ -304,61 +216,6 @@ const goToPostManagement = () => {
 // 跳转到草稿箱页面
 const goToDraftBox = () => {
   router.push('/draft-box')
-}
-
-const handleUploadError = (error) => {
-  showMessage(error, 'error')
-}
-
-// 切换上传类型
-const switchUploadType = (type) => {
-  if (uploadType.value === type) return
-  
-  uploadType.value = type
-  
-  // 切换时清空对应的数据
-  if (type === 'image') {
-    form.video = ''
-    if (videoUploadRef.value) {
-      videoUploadRef.value.reset()
-    }
-  } else {
-    form.images = []
-    if (multiImageUploadRef.value) {
-      multiImageUploadRef.value.reset()
-    }
-  }
-}
-
-const openTextImageModal = () => {
-  showTextImageModal.value = true
-  lock()
-}
-
-const closeTextImageModal = () => {
-  showTextImageModal.value = false
-  unlock()
-}
-
-const handleTextImageGenerate = async (data) => {
-
-  
-  // 将生成的图片添加到MultiImageUpload组件
-  const imageComponent = multiImageUploadRef.value
-  if (imageComponent && data.imageFile) {
-    try {
-      // 使用addFiles方法添加图片文件
-      await imageComponent.addFiles([data.imageFile])
-      showMessage('文字配图生成成功！', 'success')
-    } catch (error) {
-      console.error('添加图片失败:', error)
-      showMessage('添加图片失败，请重试', 'error')
-    }
-  } else {
-    showMessage('图片生成失败，请重试', 'error')
-  }
-  
-  closeTextImageModal()
 }
 
 const handleCategoryChange = (data) => {
@@ -480,8 +337,6 @@ const handleInputKeydown = (event) => {
 
 
 const handlePublish = async () => {
-
-  
   // 验证必填字段
   if (!form.title.trim()) {
     showMessage('请输入标题', 'error')
@@ -498,137 +353,26 @@ const handlePublish = async () => {
     return
   }
 
-  // 根据上传类型验证媒体文件
-  if (uploadType.value === 'image') {
-    if (!multiImageUploadRef.value || multiImageUploadRef.value.getImageCount() === 0) {
-      showMessage('请至少上传一张图片', 'error')
-      return
-    }
-  } else if (uploadType.value === 'video') {
-    if (!videoUploadRef.value) {
-      showMessage('请选择视频文件', 'error')
-      return
-    }
-    
-    const videoData = videoUploadRef.value.getVideoData()
-    if (!videoData || (!videoData.uploaded && !videoData.file)) {
-      showMessage('请选择视频文件', 'error')
-      return
-    }
-  }
-
   isPublishing.value = true
 
   try {
-    let mediaData = []
-    
-    if (uploadType.value === 'image') {
-      const imageComponent = multiImageUploadRef.value
-      if (!imageComponent) {
-        showMessage('图片组件未初始化', 'error')
-        return
-      }
-
-      // 处理图片上传
-      if (imageComponent.getImageCount() > 0) {
-        showMessage('正在上传图片...', 'info')
-        const uploadedImages = await imageComponent.uploadAllImages()
-
-        if (uploadedImages.length === 0) {
-          showMessage('图片上传失败', 'error')
-          return
-        }
-
-        mediaData = uploadedImages
-      }
-    } else {
-      // 视频上传处理
-
-      const videoComponent = videoUploadRef.value
-      if (!videoComponent) {
-        console.error('❌ 视频组件未初始化')
-        showMessage('视频组件未初始化', 'error')
-        return
-      }
-
-      // 检查是否有视频文件需要上传
-      const videoData = videoComponent.getVideoData()
-
-      
-      if (videoData && videoData.file && !videoData.uploaded) {
-
-        showMessage('正在上传视频...', 'info')
-        
-        try {
-          const uploadResult = await videoComponent.startUpload()
-
-          
-          if (uploadResult && uploadResult.success) {
-            mediaData = {
-              url: uploadResult.data.url,
-              coverUrl: uploadResult.data.coverUrl,
-              name: uploadResult.data.originalname || videoData.name,
-              size: uploadResult.data.size || videoData.size
-            }
-
-          } else {
-            console.error('❌ 视频上传失败:', uploadResult)
-            showMessage('视频上传失败: ' + (uploadResult?.message || '未知错误'), 'error')
-            return
-          }
-        } catch (error) {
-          console.error('❌ 视频上传异常:', error)
-          showMessage('视频上传失败', 'error')
-          return
-        }
-      } else if (videoData && videoData.url) {
-        // 已经上传过的视频
-
-        mediaData = {
-          url: videoData.url,
-          coverUrl: videoData.coverUrl,
-          name: videoData.name,
-          size: videoData.size
-        }
-
-      } else {
-        console.error('❌ 视频数据异常:', videoData)
-        showMessage('视频数据异常', 'error')
-        return
-      }
-    }
-
     const postData = {
       title: form.title.trim(),
       content: form.content,
-      images: uploadType.value === 'image' ? mediaData : [],
-      video: uploadType.value === 'video' ? mediaData : null,
+      images: [],
+      video: null,
       tags: form.tags,
       category_id: form.category_id,
-      type: uploadType.value === 'image' ? 1 : 2, // 1: 图文, 2: 视频
+      type: 1,
       status: 2 // 发布状态：2=待审核
     }
-
-
-
-
     showMessage('正在发布笔记...', 'info')
-
-
-
-
     let response
     if (isEditMode.value && currentDraftId.value) {
-
       response = await updatePost(currentDraftId.value, postData)
     } else {
-      // 普通发布
-
       response = await createPost(postData)
     }
-
-
-
     if (response.success) {
       showMessage('发布成功！', 'success')
       resetForm()
@@ -652,17 +396,8 @@ const handlePublish = async () => {
 const resetForm = () => {
   form.title = ''
   form.content = ''
-  form.images = []
-  form.video = null
   form.tags = []
   form.category_id = null
-  
-  if (multiImageUploadRef.value) {
-    multiImageUploadRef.value.reset()
-  }
-  if (videoUploadRef.value) {
-    videoUploadRef.value.reset()
-  }
 }
 
 // 加载草稿数据
@@ -675,22 +410,6 @@ const loadDraftData = async (draftId) => {
       // 初始化表单数据
       form.title = response.title || ''
       form.content = draft.content || ''
-      form.images = draft.images || []
-      
-      // 设置视频数据 - 从fullData中获取视频信息
-      if (fullData.video_url) {
-        // 构造完整的视频对象，包含VideoUpload组件需要的所有字段
-        form.video = {
-          url: fullData.video_url,
-          coverUrl: fullData.cover_url,
-          uploaded: true,
-          name: '已上传的视频',
-          size: 0,
-          preview: fullData.video_url  // 添加preview字段，VideoUpload组件需要这个字段来显示video-success状态
-        }
-      } else {
-        form.video = draft.video || null
-      }
 
       // 处理标签数据：确保转换为字符串数组
       if (draft.tags && Array.isArray(draft.tags)) {
@@ -714,44 +433,12 @@ const loadDraftData = async (draftId) => {
         form.category_id = null
       }
 
-      // 根据草稿数据类型设置uploadType
-      if (fullData.type === 2 || (form.video && form.video.url)) {
-        uploadType.value = 'video'
-      } else if (form.images.length > 0 || fullData.type === 1) {
-        // type: 1 表示图文类型，或者有图片数据
-        uploadType.value = 'image'
-      }
-      
-
       // 设置编辑模式
       currentDraftId.value = draftId
       isEditMode.value = true
 
-      // 等待DOM更新
-      await nextTick()
-      // 初始化图片组件
-      if (uploadType.value === 'image' && form.images.length > 0 && multiImageUploadRef.value) {
-        // 将图片数据转换为URL字符串数组
-        const imageUrls = form.images.map(img => {
-          if (typeof img === 'string') {
-            return img
-          } else if (img && img.url) {
-            return img.url
-          } else if (img && img.preview) {
-            return img.preview
-          }
-          return null
-        }).filter(url => url)
-        multiImageUploadRef.value.syncWithUrls(imageUrls)
-      }
-
-      // 初始化视频组件
-      if (uploadType.value === 'video' && form.video) {
-        await nextTick()
-        const videoData = form.video
-        form.video = null // 先清空
-        await nextTick()
-        form.video = videoData // 再设置，确保触发watch
+      if ((Array.isArray(draft.images) && draft.images.length > 0) || fullData.video_url || fullData.type === 2) {
+        showMessage('检测到历史媒体内容，当前编辑不会再新增或修改媒体文件', 'info')
       }
 
       showMessage('草稿加载成功', 'success')
@@ -773,84 +460,17 @@ const handleSaveDraft = async () => {
     return
   }
 
-  // 验证是否有媒体文件
-  if (uploadType.value === 'image') {
-    if (!multiImageUploadRef.value || multiImageUploadRef.value.getImageCount() === 0) {
-      showMessage('请至少上传一张图片', 'error')
-      return
-    }
-  } else if (uploadType.value === 'video') {
-    if (!videoUploadRef.value) {
-      showMessage('请选择视频文件', 'error')
-      return
-    }
-    
-    const videoData = videoUploadRef.value.getVideoData()
-    if (!videoData || (!videoData.uploaded && !videoData.file)) {
-      showMessage('请选择视频文件', 'error')
-      return
-    }
-  }
-
   isSavingDraft.value = true
 
   try {
-    let mediaData = []
-    
-    if (uploadType.value === 'image') {
-      // 如果有图片，先上传图片
-      const imageComponent = multiImageUploadRef.value
-      if (imageComponent && imageComponent.getImageCount() > 0) {
-        showMessage('正在上传图片...', 'info')
-        const uploadedImages = await imageComponent.uploadAllImages()
-        mediaData = uploadedImages
-      }
-    } else if (uploadType.value === 'video') {
-      // 视频上传处理
-      const videoComponent = videoUploadRef.value
-      if (videoComponent) {
-        const videoData = videoComponent.getVideoData()
-        if (videoData && videoData.file && !videoData.uploaded) {
-          showMessage('正在上传视频...', 'info')
-          
-          try {
-            const uploadResult = await videoComponent.startUpload()
-            if (uploadResult && uploadResult.success) {
-              mediaData = {
-                url: uploadResult.data.url,
-                coverUrl: uploadResult.data.coverUrl,
-                name: uploadResult.data.originalname || videoData.name,
-                size: uploadResult.data.size || videoData.size
-              }
-            } else {
-              showMessage('视频上传失败: ' + (uploadResult?.message || '未知错误'), 'error')
-              return
-            }
-          } catch (error) {
-            console.error('视频上传失败:', error)
-            showMessage('视频上传失败', 'error')
-            return
-          }
-        } else if (videoData && videoData.url) {
-          // 已经上传过的视频
-          mediaData = {
-            url: videoData.url,
-            coverUrl: videoData.coverUrl,
-            name: videoData.name,
-            size: videoData.size
-          }
-        }
-      }
-    }
-
     const draftData = {
       title: form.title.trim() || '',
       content: form.content || '',
-      images: uploadType.value === 'image' ? mediaData : [],
-      video: uploadType.value === 'video' ? mediaData : null,
+      images: [],
+      video: null,
       tags: form.tags || [],
       category_id: form.category_id || null,
-      type: uploadType.value === 'image' ? 1 : 2, // 1: 图文, 2: 视频
+      type: 1,
       status: 1 // 草稿状态
     }
 
@@ -1058,6 +678,18 @@ const handleSaveDraft = async () => {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+.publish-mode-hint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-color-primary);
+  border-radius: 12px;
+  background: var(--bg-color-secondary);
+  color: var(--text-color-secondary);
+  font-size: 14px;
 }
 
 .upload-section {

@@ -404,28 +404,21 @@ const apiGroups = ref([
     ]
   },
   {
-    name: '视频上传接口',
+    name: '视频上传接口（已关闭）',
     apis: [
       {
         method: 'POST',
         path: '/api/upload/video',
-        title: '视频上传',
-        description: '上传视频文件，限制100MB，支持mp4、avi、mov格式',
+        title: '视频上传（已关闭）',
+        description: '平台当前已关闭视频上传，调用会返回 400 错误',
         auth: true,
         expanded: false,
         params: [
           { name: 'video', type: 'file', required: true, description: '要上传的视频文件（mp4, avi, mov）' }
         ],
         example: `{
-  "code": 200,
-  "message": "视频上传成功",
-  "data": {
-    "originalname": "video.mp4",
-    "size": 52428800,
-    "url": "https://video.example.com/1234567890.mp4",
-    "cover": "https://img.example.com/1234567890_cover.jpg",
-    "duration": 120
-  }
+  "code": 400,
+  "message": "平台当前已关闭文件上传，请改用外链内容"
 }`
       }
     ]
@@ -691,16 +684,13 @@ const apiGroups = ref([
         method: 'POST',
         path: '/api/posts',
         title: '创建笔记',
-        description: '发布新笔记或保存草稿，支持图文和视频两种类型',
+        description: '发布新笔记或保存草稿，当前仅支持纯文本内容',
         auth: true,
         expanded: false,
         params: [
           { name: 'title', type: 'string', required: false, description: '笔记标题（发布时必填，草稿时可选）' },
-          { name: 'content', type: 'string', required: false, description: '笔记内容（发布时必填，草稿时可选）' },
+          { name: 'content', type: 'string', required: false, description: '笔记内容（发布时必填，草稿时可选，不支持 <img>/<video> 媒体标签）' },
           { name: 'category_id', type: 'int', required: false, description: '分类ID（发布时必填，草稿时可选）' },
-          { name: 'type', type: 'int', required: false, description: '笔记类型：1-图文笔记（默认），2-视频笔记' },
-          { name: 'images', type: 'array', required: false, description: '图片URL数组（图文笔记使用）' },
-          { name: 'video', type: 'object', required: false, description: '视频信息对象（视频笔记使用）' },
           { name: 'tags', type: 'array', required: false, description: '标签名称数组（字符串数组）' },
           { name: 'status', type: 'int', required: false, description: '笔记状态，0=已发布（审核通过），1=草稿，2=待审核（默认2）' }
         ]
@@ -770,16 +760,14 @@ const apiGroups = ref([
         method: 'PUT',
         path: '/api/posts/:id',
         title: '更新笔记',
-        description: '更新指定笔记的信息',
+        description: '更新指定笔记的文本信息，当前不支持修改图片或视频内容',
         auth: true,
         expanded: false,
         params: [
           { name: 'id', type: 'int', required: true, description: '笔记ID' },
           { name: 'title', type: 'string', required: false, description: '笔记标题（发布时必填，草稿时可选）' },
-          { name: 'content', type: 'string', required: false, description: '笔记内容（发布时必填，草稿时可选）' },
+          { name: 'content', type: 'string', required: false, description: '笔记内容（发布时必填，草稿时可选，不支持 <img>/<video> 媒体标签）' },
           { name: 'category_id', type: 'int', required: false, description: '分类ID（发布时必填，草稿时可选）' },
-          { name: 'images', type: 'array', required: false, description: '图片URL数组（图文笔记使用）' },
-          { name: 'video', type: 'object', required: false, description: '视频信息对象（视频笔记使用）' },
           { name: 'tags', type: 'array', required: false, description: '标签名称数组（字符串数组）' },
           { name: 'status', type: 'int', required: false, description: '笔记状态，0=发布（审核通过），1=草稿，2=待审核（默认2）' }
         ]
@@ -981,7 +969,7 @@ const apiGroups = ref([
         expanded: false,
         params: [
           { name: 'id', type: 'int', required: true, description: '笔记ID（路径参数）' },
-          { name: 'content', type: 'string', required: true, description: '评论内容（支持@功能的HTML格式）' },
+          { name: 'content', type: 'string', required: true, description: '评论内容（支持@功能，不支持 <img>/<video> 等媒体标签）' },
           { name: 'parent_id', type: 'int', required: false, description: '父评论ID（回复评论时使用）' }
         ]
       },
@@ -1062,7 +1050,7 @@ const apiGroups = ref([
         params: [
           { name: 'keyword', type: 'string', required: false, description: '搜索关键词（支持搜索AstrBot ID、昵称、标题、正文内容、标签名称）' },
           { name: 'tag', type: 'string', required: false, description: '标签搜索（精确匹配标签名称）' },
-          { name: 'type', type: 'string', required: false, description: '搜索类型：all（默认，所有类型）、posts（图文笔记）、videos（视频笔记）、users（用户）' },
+          { name: 'type', type: 'string', required: false, description: '搜索类型：all（默认，所有类型）、posts（文本笔记）、videos（历史视频）、users（用户）' },
           { name: 'page', type: 'int', required: false, description: '页码，默认1' },
           { name: 'limit', type: 'int', required: false, description: '每页数量，默认20' }
         ],
@@ -1392,53 +1380,36 @@ const apiGroups = ref([
     ]
   },
   {
-    name: '图片上传接口',
+    name: '图片上传接口（已关闭）',
     apis: [
       {
         method: 'POST',
         path: '/api/upload/single',
-        title: '单图片上传',
-        description: '上传单个图片文件，限制5MB',
+        title: '单图片上传（已关闭）',
+        description: '平台当前已关闭图片上传，调用会返回 400 错误',
         auth: true,
         expanded: false,
         params: [
           { name: 'file', type: 'file', required: true, description: '要上传的图片文件（jpg, jpeg, png, webp）' }
         ],
         example: `{
-  "code": 200,
-  "message": "上传成功",
-  "data": {
-    "originalname": "image.jpg",
-    "size": 1024000,
-    "url": "https://img.example.com/1234567890.jpg"
-  }
+  "code": 400,
+  "message": "平台当前已关闭文件上传，请改用外链内容"
 }`
       },
       {
         method: 'POST',
         path: '/api/upload/multiple',
-        title: '多图片上传',
-        description: '上传多个图片文件，最多9个，每个限制5MB',
+        title: '多图片上传（已关闭）',
+        description: '平台当前已关闭批量图片上传，调用会返回 400 错误',
         auth: true,
         expanded: false,
         params: [
           { name: 'files', type: 'file[]', required: true, description: '要上传的图片文件数组' }
         ],
         example: `{
-  "code": 200,
-  "message": "上传成功",
-  "data": [
-    {
-      "originalname": "image1.jpg",
-      "size": 1024000,
-      "url": "https://img.example.com/1234567890.jpg"
-    },
-    {
-      "originalname": "image2.jpg",
-      "size": 2048000,
-      "url": "https://img.example.com/1234567891.jpg"
-    }
-  ]
+  "success": false,
+  "message": "平台当前已关闭文件上传，请改用外链内容"
 }`
       }
     ]

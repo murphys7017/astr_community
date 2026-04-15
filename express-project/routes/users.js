@@ -1111,17 +1111,19 @@ router.put('/:id', authenticateToken, async (req, res) => {
       return res.status(HTTP_STATUS.BAD_REQUEST).json({ code: RESPONSE_CODES.VALIDATION_ERROR, message: '昵称不能为空' });
     }
 
+    if (avatar !== undefined) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        code: RESPONSE_CODES.VALIDATION_ERROR,
+        message: '头像已改为跟随登录账号来源，暂不支持手动修改'
+      });
+    }
+
     // 构建更新SQL
     let updateFields = [];
     let updateValues = [];
 
     updateFields.push('nickname = ?');
     updateValues.push(sanitizeContent(nickname.trim()));
-
-    if (avatar !== undefined) {
-      updateFields.push('avatar = ?');
-      updateValues.push(avatar || '');
-    }
 
     if (bio !== undefined) {
       updateFields.push('bio = ?');

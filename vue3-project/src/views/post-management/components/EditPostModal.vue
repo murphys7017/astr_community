@@ -34,10 +34,7 @@ const formData = ref({
   title: '',
   content: '',
   category: '',
-  tags: [],
-  images: [],
-  image_urls: [],
-  type: 1  // 添加type字段，默认为1（图文笔记）
+  tags: []
 })
 
 // 消息提示
@@ -69,7 +66,7 @@ const fetchCategories = async () => {
 
 // 表单字段配置
 const formFields = computed(() => {
-  const baseFields = [
+  return [
     {
       key: 'title',
       label: '标题',
@@ -101,28 +98,6 @@ const formFields = computed(() => {
       maxTags: 10
     }
   ]
-
-  // 根据笔记类型添加不同的字段
-  if (formData.value.type === 2) {
-    // 视频笔记：只添加视频上传字段，不添加封面图
-    baseFields.push({
-      key: 'video_upload',
-      label: '视频',
-      type: 'video-upload',
-      placeholder: '点击更换视频',
-      ref: 'videoComponent' // 添加ref引用
-    })
-  } else {
-    // 图文笔记：添加多图上传字段
-    baseFields.push({
-      key: 'image_urls',
-      label: '图片',
-      type: 'multi-image-upload',
-      maxImages: 9
-    })
-  }
-
-  return baseFields
 })
 
 // 更新表单数据
@@ -133,7 +108,7 @@ const updateFormData = (newData) => {
 
 // 计算属性
 const modalTitle = computed(() => {
-  return formData.value.type === 2 ? '编辑视频笔记' : '编辑图文笔记'
+  return '编辑笔记'
 })
 
 const canSave = computed(() => {
@@ -154,44 +129,18 @@ const processPostData = (data) => {
     title: data.title || '',
     content: data.content || '',
     category: data.category || '',
-    tags: data.tags || [],
-    images: [],
-    image_urls: [],
-    video_url: data.video_url || '',
-    cover_url: data.cover_url || '',
-    video_upload: null,
-    type: data.type || 1
+    tags: data.tags || []
   }
 
-  // 处理分类数据 - 根据分类名称查找分类ID
   if (data.category && categories.value.length > 0) {
     const categoryItem = categories.value.find(cat => cat.label === data.category)
     newData.category = categoryItem ? categoryItem.value : ''
   }
 
-  // 处理标签数据
   if (data.tags) {
     newData.tags = Array.isArray(data.tags)
       ? data.tags.map(tag => typeof tag === 'object' ? tag.name : tag)
       : []
-  }
-
-  // 处理图片数据
-  if (data.images) {
-    const images = Array.isArray(data.images) ? data.images : []
-    newData.image_urls = images.filter(url => url)
-  }
-
-  // 处理视频数据 - 如果有视频URL，构造video_upload对象用于组件显示
-  if (data.video_url) {
-    newData.video_upload = {
-      url: data.video_url,
-      coverUrl: data.cover_url,
-      name: '已上传的视频',
-      size: 0,
-      uploaded: true,
-      preview: data.video_url
-    }
   }
 
   return newData
@@ -206,45 +155,19 @@ const initializeForm = async (postData) => {
 
   if (postData && postData.id) {
     try {
-      // 先设置type字段，确保modalTitle能正确计算
-      if (postData.type) {
-        formData.value.type = postData.type
-      }
-
       // 获取完整的笔记详情
       const fullPost = await getPostDetail(postData.id)
 
       if (fullPost && fullPost.originalData) {
         const originalData = fullPost.originalData
-        let processedData = processPostData({
+        const processedData = processPostData({
           title: fullPost.title,
           content: originalData.content || fullPost.content,
           category: fullPost.category,
-          tags: originalData.tags,
-          images: originalData.images,
-          type: fullPost.type  // 添加type字段
+          tags: originalData.tags
         })
 
-        // 如果是视频笔记，设置分离的视频字段并构造video_upload对象用于组件显示
-        if (fullPost.type === 2 && fullPost.video_url) {
-          processedData.video_url = fullPost.video_url
-          processedData.cover_url = fullPost.cover_url || ''
-          processedData.video_upload = {
-            url: fullPost.video_url,
-            coverUrl: fullPost.cover_url,
-            name: '已上传的视频',
-            size: 0,
-            uploaded: true,
-            preview: fullPost.video_url
-          }
-        }
-
         formData.value = processedData
-
-        // 设置视频上传状态 - 简化逻辑
-        if (fullPost.type === 2 && fullPost.video_url) {
-          // 视频笔记已有视频，无需特殊处理
-        }
       } else {
         console.error('获取笔记详情失败: 数据格式不正确')
         formData.value = processPostData(postData)
@@ -289,11 +212,6 @@ const handleClose = () => {
   emit('update:visible', false)
 }
 
-// 处理上传错误
-const handleUploadError = (error) => {
-  showMessage(error, 'error')
-}
-
 // 组件挂载时获取分类数据
 onMounted(() => {
   fetchCategories()
@@ -315,34 +233,11 @@ const handleSave = async (processedData) => {
 const savePost = async (processedData) => {
   try {
     saving.value = true
-
-    // 如果存在video_upload对象，删除它（已在表单中设置了分离字段）
-    if (processedData.video_upload) {
-      delete processedData.video_upload
-    }
     const postData = {
       title: (processedData.title || '').trim(),
       content: (processedData.content || '').trim(),
       category_id: processedData.category,
       tags: processedData.tags || []
-    }
-
-    // 根据笔记类型处理媒体数据
-    if (formData.value.type === 2) {
-      // 视频笔记：处理视频数据 - 组合成video对象发送给后端
-      if (processedData.video_url) {
-        postData.video = {
-          url: processedData.video_url,
-          coverUrl: processedData.cover_url || null
-        }
-      } else {
-        postData.video = null
-      }
-      postData.images = [] // 视频笔记清空images字段
-    } else {
-      // 图文笔记：处理图片数据
-      postData.images = processedData.image_urls || []
-      postData.video = null // 图文笔记清空video字段
     }
 
     const response = await updatePost(props.post.id, postData)
