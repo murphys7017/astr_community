@@ -80,3 +80,89 @@
   --danger-color: #ff0c30;
   --danger-color-dark: rgb(201, 9, 37);
 }
+
+/* Phycat Mint 主题 - 清新浅色风格 */
+[data-theme="phycat-mint"] {
+  /* 主题色 */
+  --primary-color: #10b981;
+  --primary-color-dark: #059669;
+  --primary-color-shadow: rgba(16, 185, 129, 0.3);
+
+  /* 文本颜色 */
+  --text-color-primary: #333333;
+  --text-color-secondary: #5c5c5c;
+  --text-color-tertiary: #858585;
+  --text-color-quaternary: #bbbbbb;
+  --text-color-inverse: #fff;
+  --text-color-tag: #10b981;
+
+  /* 背景颜色 */
+  --bg-color-primary: #ffffff;
+  --bg-color-secondary: #f6f8fa;
+  --bg-color-tertiary: #e8e4e4;
+  --bg-color-inverse: #474747;
+
+  /* 边框颜色 */
+  --border-color-primary: #eaecef;
+  --border-color-secondary: #eee;
+
+  /* 禁用状态颜色 */
+  --disabled-bg: #ccc;
+  --disabled-text: #ffffff;
+
+  /* 阴影颜色 */
+  --shadow-color: rgba(0, 0, 0, 0.08);
+
+  /* 通用遮罩背景（半透明） */
+  --overlay-bg: rgba(18, 18, 18, 0.5);
+
+  /* 按钮文字颜色 */
+  --button-text-color: #fff;
+
+  /* 危险颜色 */
+  --danger-color: #ef4444;
+  --danger-color-dark: #dc2626;
+}
+
+/* Phycat Abyss 主题 - 深邃暗色风格 */
+[data-theme="phycat-abyss"] {
+  /* 主题色 */
+  --primary-color: #58a6ff;
+  --primary-color-dark: #388bfd;
+  --primary-color-shadow: rgba(88, 166, 255, 0.3);
+
+  /* 文本颜色 */
+  --text-color-primary: #c9d1d9;
+  --text-color-secondary: #8b949e;
+  --text-color-tertiary: #6e7681;
+  --text-color-quaternary: #484f58;
+  --text-color-inverse: #0a0a0a;
+  --text-color-tag: #58a6ff;
+
+  /* 背景颜色 */
+  --bg-color-primary: #0d1117;
+  --bg-color-secondary: #161b22;
+  --bg-color-tertiary: #21262d;
+  --bg-color-inverse: #e7e7e7;
+
+  /* 边框颜色 */
+  --border-color-primary: #30363d;
+  --border-color-secondary: #21262d;
+
+  /* 禁用状态颜色 */
+  --disabled-bg: #484f58;
+  --disabled-text: #0d1117;
+
+  /* 阴影颜色 */
+  --shadow-color: rgba(0, 0, 0, 0.4);
+
+  /* 通用遮罩背景（半透明） */
+  --overlay-bg: rgba(1, 4, 9, 0.8);
+
+  /* 按钮文字颜色 */
+  --button-text-color: #0d1117;
+
+  /* 危险颜色 */
+  --danger-color: #f85149;
+  --danger-color-dark: #da3633;
+}

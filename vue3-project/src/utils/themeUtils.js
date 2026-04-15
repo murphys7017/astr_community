@@ -75,5 +75,15 @@ export const themeOptions = [
     value: 'dark',
     label: '深色模式',
     icon: 'moon'
+  },
+  {
+    value: 'phycat-mint',
+    label: 'Phycat Mint',
+    icon: 'mint'
+  },
+  {
+    value: 'phycat-abyss',
+    label: 'Phycat Abyss',
+    icon: 'abyss'
   }
 ]
