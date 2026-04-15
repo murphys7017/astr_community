@@ -18,34 +18,40 @@
             </div>
           </div>
 
-
           <div class="form-group">
             <label class="form-label">昵称:</label>
             <input v-model="form.nickname" type="text" placeholder="请输入昵称" maxlength="10" />
           </div>
 
-
           <div class="form-group">
             <label class="form-label">个人简介:</label>
             <div class="bio-input-wrapper">
-              <ContentEditableInput ref="bioTextarea" v-model="form.bio" :input-class="'content-textarea'"
-                :placeholder="'请输入个人简介'" :enable-mention="true" :mention-users="mentionUsers"
-                @mention="handleMentionInput" @keydown="handleInputKeydown" />
-              <div class="bio-actions">
-                <button type="button" class="mention-btn" @click="toggleMentionPanel">
-                  <SvgIcon name="mention" class="mention-icon" width="20" height="20" />
-                </button>
-                <button type="button" class="emoji-btn" @click="toggleEmojiPanel">
-                  <SvgIcon name="emoji" class="emoji-icon" width="20" height="20" />
-                </button>
-              </div>
+              <textarea v-model="form.bio" class="bio-textarea" placeholder="请输入个人简介" maxlength="200"></textarea>
               <div class="char-count">{{ form.bio.length }}/200</div>
             </div>
           </div>
 
-
-
-
+          <!-- Markdown 主题设置 -->
+          <div class="form-group">
+            <label class="form-label">Markdown 渲染主题:</label>
+            <div class="theme-selector">
+              <label
+                v-for="theme in themeOptions"
+                :key="theme.value"
+                class="theme-option"
+                :class="{ active: form.markdownTheme === theme.value }"
+              >
+                <input
+                  type="radio"
+                  :value="theme.value"
+                  v-model="form.markdownTheme"
+                  class="theme-radio"
+                />
+                <span class="theme-label">{{ theme.label }}</span>
+              </label>
+            </div>
+            <p class="theme-hint">仅当前浏览器生效</p>
+          </div>
 
           <!-- 邮箱（仅在邮件功能启用时显示） -->
           <div v-if="emailEnabled" class="form-group">
@@ -82,19 +88,16 @@
               value-key="value" min-width="100%" />
           </div>
 
-
           <div class="form-group">
             <label class="form-label">星座:</label>
             <DropdownSelect v-model="form.zodiac_sign" :options="zodiacOptions" placeholder="请选择星座" label-key="label"
               value-key="value" min-width="100%" />
           </div>
 
-
           <div class="form-group">
             <label class="form-label">MBTI:</label>
             <MbtiPicker v-model="form.mbti" :dimensions="mbtiDimensions" />
           </div>
-
 
           <div class="form-group">
             <label class="form-label">学历:</label>
@@ -102,12 +105,10 @@
               value-key="value" min-width="100%" />
           </div>
 
-
           <div class="form-group">
             <label class="form-label">专业:</label>
             <input v-model="form.major" type="text" placeholder="请输入专业" maxlength="11" />
           </div>
-
 
           <div class="form-group">
             <label class="form-label">兴趣爱好:</label>
@@ -144,17 +145,6 @@
     </div>
   </div>
 
-
-  <div v-if="showEmojiPanel" class="emoji-panel-overlay" v-click-outside.mousedown="closeEmojiPanel"
-    v-escape-key="closeEmojiPanel">
-    <div class="emoji-panel" @mousedown.stop>
-      <EmojiPicker @select="handleEmojiSelect" />
-    </div>
-  </div>
-
-
-  <MentionModal :visible="showMentionPanel" @close="closeMentionPanel" @select="handleMentionSelect" />
-
   <!-- 解绑邮箱确认对话框 -->
   <ConfirmDialog v-model:visible="showUnbindConfirmDialog" title="解除邮箱绑定"
     message="确定要解除邮箱绑定吗？解绑后将无法通过邮箱找回密码。" type="warning" confirm-text="解绑" cancel-text="取消"
@@ -162,14 +152,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, nextTick, watch, inject, computed, onMounted } from 'vue'
+import { ref, reactive, watch, inject, computed, onMounted } from 'vue'
 import SvgIcon from '@/components/SvgIcon.vue'
 import { authApi } from '@/api/index.js'
-import EmojiPicker from '@/components/EmojiPicker.vue'
 import DropdownSelect from '@/components/DropdownSelect.vue'
 import MbtiPicker from '@/components/MbtiPicker.vue'
-import MentionModal from '@/components/mention/MentionModal.vue'
-import ContentEditableInput from '@/components/ContentEditableInput.vue'
 import { useScrollLock } from '@/composables/useScrollLock'
 import { sanitizeContent } from '@/utils/contentSecurity'
 import { useUserStore } from '@/stores/user.js'
@@ -198,6 +185,15 @@ const { lock, unlock } = useScrollLock()
 const userStore = useUserStore()
 
 const defaultAvatar = new URL('@/assets/imgs/avatar.png', import.meta.url).href
+
+// Markdown 主题相关
+const THEME_STORAGE_KEY = 'markdownTheme'
+const DEFAULT_THEME = 'phycat-mint'
+
+const themeOptions = [
+  { value: 'phycat-mint', label: 'Phycat Mint' },
+  { value: 'phycat-abyss', label: 'Phycat Abyss' }
+]
 
 // 邮箱相关
 const emailEnabled = ref(false)
@@ -236,7 +232,7 @@ const fetchEmailConfig = async () => {
 const handleSendEmailCode = async () => {
   if (!emailForm.email) return
   emailError.value = ''
-  
+
   const result = await userStore.sendEmailCode({ email: emailForm.email })
   if (!result.success) {
     emailError.value = result.message
@@ -248,13 +244,13 @@ const handleBindEmail = async () => {
   if (!emailForm.email || !emailForm.code) return
   emailError.value = ''
   isBindingEmail.value = true
-  
+
   try {
     const result = await userStore.bindEmail({
       email: emailForm.email,
       emailCode: emailForm.code
     })
-    
+
     if (result.success) {
       $message.success('邮箱绑定成功')
       // 清空表单
@@ -284,10 +280,10 @@ const handleUnbindEmail = () => {
 // 确认解绑邮箱
 const confirmUnbindEmail = async () => {
   isUnbindingEmail.value = true
-  
+
   try {
     const result = await userStore.unbindEmail()
-    
+
     if (result.success) {
       $message.success('邮箱解绑成功')
       // 触发父组件刷新用户信息
@@ -302,6 +298,28 @@ const confirmUnbindEmail = async () => {
   }
 }
 
+// 从 localStorage 加载 Markdown 主题
+const loadMarkdownTheme = () => {
+  try {
+    const saved = localStorage.getItem(THEME_STORAGE_KEY)
+    if (saved === 'phycat-mint' || saved === 'phycat-abyss') {
+      return saved
+    }
+  } catch (e) {
+    console.error('Failed to load theme:', e)
+  }
+  return DEFAULT_THEME
+}
+
+// 保存 Markdown 主题到 localStorage
+const saveMarkdownTheme = (theme) => {
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, theme)
+  } catch (e) {
+    console.error('Failed to save theme:', e)
+  }
+}
+
 // 组件挂载时获取邮件配置
 onMounted(() => {
   fetchEmailConfig()
@@ -312,7 +330,7 @@ const form = reactive({
   avatar: '',
   nickname: '',
   bio: '',
-
+  markdownTheme: DEFAULT_THEME,
   gender: '',
   zodiac_sign: '',
   mbti: '',
@@ -323,15 +341,6 @@ const form = reactive({
 
 // 兴趣爱好相关
 const newInterest = ref('')
-
-// 用于mention功能的用户数据
-const mentionUsers = ref([
-  { id: 1, user_id: 'user001', username: 'alice', nickname: '爱丽丝', avatar: 'https://picsum.photos/40/40?random=1' },
-  { id: 2, user_id: 'user002', username: 'bob', nickname: '鲍勃', avatar: 'https://picsum.photos/40/40?random=2' },
-  { id: 3, user_id: 'user003', username: 'charlie', nickname: '查理', avatar: 'https://picsum.photos/40/40?random=3' },
-  { id: 4, user_id: 'user004', username: 'diana', nickname: '戴安娜', avatar: 'https://picsum.photos/40/40?random=4' },
-  { id: 5, user_id: 'user005', username: 'eve', nickname: '夏娃', avatar: 'https://picsum.photos/40/40?random=5' }
-])
 
 const saving = ref(false)
 
@@ -402,16 +411,6 @@ const mbtiDimensions = [
   }
 ]
 
-// 表情相关
-const showEmojiPanel = ref(false)
-const bioTextarea = ref(null)
-
-// handleBioInput函数的功能已经被ContentEditableInput组件封装
-
-// mention相关
-const showMentionPanel = ref(false)
-const currentMentionField = ref('')
-
 // 监听visible变化，初始化表单数据
 watch(() => props.visible, (newValue) => {
   if (newValue) {
@@ -424,6 +423,7 @@ watch(() => props.visible, (newValue) => {
     form.avatar = isValidAvatar ? props.userInfo.avatar : defaultAvatar
     form.nickname = props.userInfo.nickname || ''
     form.bio = props.userInfo.bio || ''
+    form.markdownTheme = loadMarkdownTheme()
 
     form.gender = props.userInfo.gender || ''
     form.zodiac_sign = props.userInfo.zodiac_sign || ''
@@ -466,113 +466,10 @@ watch(() => form.bio, (newValue) => {
   }
 })
 
-// 表情相关方法
-const toggleEmojiPanel = () => {
-  showEmojiPanel.value = !showEmojiPanel.value
-}
-
-const closeEmojiPanel = () => {
-  showEmojiPanel.value = false
-}
-
-// mention相关方法
-const toggleMentionPanel = () => {
-  // 如果要打开面板，先插入@符号
-  if (!showMentionPanel.value && bioTextarea.value && bioTextarea.value.insertAtSymbol) {
-    bioTextarea.value.insertAtSymbol()
-  }
-  showMentionPanel.value = !showMentionPanel.value
-  currentMentionField.value = 'bio'
-}
-
-const closeMentionPanel = () => {
-  // 当关闭艾特选择模态框时，将输入框中带标记的@符号转换为纯文本
-  if (bioTextarea.value && bioTextarea.value.convertAtMarkerToText) {
-    bioTextarea.value.convertAtMarkerToText()
-  }
-  showMentionPanel.value = false
-  currentMentionField.value = ''
-}
-
-const handleMentionSelect = (friend) => {
-  // 调用ContentEditableInput组件的selectMentionUser方法
-  if (bioTextarea.value && bioTextarea.value.selectMentionUser) {
-    bioTextarea.value.selectMentionUser(friend)
-  }
-  closeMentionPanel()
-}
-
-// 处理@符号输入触发提及面板
-const handleMentionInput = () => {
-  if (!showMentionPanel.value) {
-    showMentionPanel.value = true
-    currentMentionField.value = 'bio'
-  }
-}
-
-// 处理键盘事件，实现mention链接整体删除
-const handleInputKeydown = (event) => {
-  if (event.key === 'Backspace') {
-    // 处理mention链接的整体删除
-    const selection = window.getSelection()
-    if (selection.rangeCount > 0) {
-      const range = selection.getRangeAt(0)
-      const container = range.startContainer
-
-      // 检查光标是否在mention链接之后
-      if (container.nodeType === Node.TEXT_NODE && container.previousSibling) {
-        const prevElement = container.previousSibling
-        if (prevElement.nodeType === Node.ELEMENT_NODE &&
-          prevElement.tagName === 'A' &&
-          prevElement.classList.contains('mention-link')) {
-          // 如果光标在mention链接后的文本节点开始位置
-          if (range.startOffset === 0) {
-            event.preventDefault()
-            // 删除整个mention链接
-            prevElement.remove()
-            // 更新form.bio的值
-            form.bio = event.target.textContent || ''
-
-            // 重新设置光标位置
-            nextTick(() => {
-              const newRange = document.createRange()
-              const newSelection = window.getSelection()
-              if (container.textContent.length > 0) {
-                newRange.setStart(container, 0)
-                newRange.setEnd(container, 0)
-              } else {
-                newRange.selectNodeContents(event.target)
-                newRange.collapse(false)
-              }
-              newSelection.removeAllRanges()
-              newSelection.addRange(newRange)
-            })
-          }
-        }
-      }
-    }
-  }
-}
-
-const handleEmojiSelect = (emoji) => {
-  const emojiChar = emoji.i
-  const inputElement = bioTextarea.value
-
-  if (inputElement && inputElement.insertEmoji) {
-    // 使用ContentEditableInput组件的insertEmoji方法
-    inputElement.insertEmoji(emojiChar)
-  } else {
-    // 备用方案：直接添加到末尾
-    form.bio += emojiChar
-    nextTick(() => {
-      if (bioTextarea.value) {
-        bioTextarea.value.focus()
-      }
-    })
-  }
-
-  closeEmojiPanel()
-}
+// 监听 Markdown 主题变化
+watch(() => form.markdownTheme, (newValue) => {
+  saveMarkdownTheme(newValue)
+})
 
 // 兴趣爱好相关方法
 const addInterest = () => {
@@ -591,8 +488,6 @@ const removeInterest = (index) => {
 const handleClose = () => {
   emit('update:visible', false)
 }
-
-
 
 const handleSave = async () => {
   if (!form.nickname.trim()) {
@@ -666,10 +561,6 @@ const handleSave = async () => {
   overflow: hidden;
 }
 
-.crop-modal {
-  max-width: 600px;
-}
-
 .modal-header {
   display: flex;
   justify-content: space-between;
@@ -716,7 +607,6 @@ const handleSave = async () => {
   flex: 1;
   overflow-y: auto;
   min-height: 0;
-  /* 确保flex子元素可以收缩 */
 }
 
 .modal-footer {
@@ -757,42 +647,21 @@ const handleSave = async () => {
 }
 
 .form-group input:focus,
-.form-group textarea:focus,
-.form-group .content-textarea:focus {
+.form-group textarea:focus {
   outline: none;
   border-color: var(--primary-color);
 }
 
-.form-group textarea,
-.form-group .content-textarea {
+.form-group textarea {
   resize: vertical;
   min-height: 100px;
-}
-
-.content-textarea {
-  width: 100%;
-  padding: 12px;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--text-color-primary);
-  background-color: var(--bg-color-secondary);
-  box-sizing: border-box;
-  caret-color: var(--primary-color);
-}
-
-.content-textarea:empty:before {
-  content: attr(placeholder);
-  color: var(--text-color-secondary);
-  pointer-events: none;
 }
 
 .form-group .form-label {
   color: var(--text-color-primary);
 }
 
-/* ContentEditableInput样式 */
+/* 个人简介样式 */
 .bio-input-wrapper {
   position: relative;
   border: 1px solid var(--border-color-primary);
@@ -805,82 +674,69 @@ const handleSave = async () => {
   border-color: var(--primary-color);
 }
 
-.bio-input-wrapper :deep(.content-textarea) {
+.bio-textarea {
   width: 100%;
-  padding: 1rem;
-  padding-bottom: 3rem;
+  padding: 12px;
   border: none;
   border-radius: 8px;
-  background: transparent;
-  color: var(--text-color-primary);
-  font-size: 16px;
+  font-size: 14px;
   line-height: 1.5;
-  transition: all 0.2s ease;
+  color: var(--text-color-primary);
+  background: transparent;
   min-height: 120px;
   box-sizing: border-box;
-
+  caret-color: var(--primary-color);
+  resize: vertical;
 }
 
-.bio-input-wrapper :deep(.content-textarea:focus) {
+.bio-textarea:focus {
   outline: none;
 }
 
-.bio-input-wrapper :deep(.mention-link) {
-  color: var(--text-color-tag);
-  text-decoration: none;
-  font-weight: 500;
-  cursor: pointer;
-  transition: color 0.2s ease;
-  background: none;
-  border: none;
-  padding: 0;
-  display: inline;
+.bio-textarea::placeholder {
+  color: var(--text-color-secondary);
 }
 
-.bio-input-wrapper :deep(.mention-link:hover) {
-  color: var(--text-color-tag);
-  opacity: 0.8;
+/* Markdown 主题选择器 */
+.theme-selector {
+  display: flex;
+  gap: 12px;
 }
 
-.bio-input-wrapper :deep(.mention-link:active) {
-  color: var(--text-color-tag);
-  opacity: 0.6;
-}
-
-.bio-actions {
-  position: absolute;
-  bottom: 0.5rem;
-  left: 1rem;
+.theme-option {
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.emoji-btn,
-.mention-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: none;
-  background: transparent;
-  color: var(--text-color-secondary, #999);
-  border-radius: 50%;
+  padding: 10px 16px;
+  border: 1px solid var(--border-color-primary);
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.emoji-btn:hover,
-.mention-btn:hover {
+.theme-option:hover {
+  border-color: var(--primary-color);
   background: var(--bg-color-secondary);
-  color: var(--text-color-primary);
 }
 
-.emoji-icon,
-.mention-icon {
-  width: 20px;
-  height: 20px;
+.theme-option.active {
+  border-color: var(--primary-color);
+  background: var(--primary-color);
+  color: white;
+}
+
+.theme-radio {
+  margin: 0;
+}
+
+.theme-label {
+  font-size: 14px;
+}
+
+.theme-hint {
+  font-size: 12px;
+  color: var(--text-color-secondary);
+  margin-top: 4px;
 }
 
 .char-count {
@@ -893,8 +749,6 @@ const handleSave = async () => {
   padding: 0.25rem;
   border-radius: 4px;
 }
-
-
 
 /* 兴趣爱好样式 */
 .interests-input {
@@ -981,7 +835,6 @@ const handleSave = async () => {
   text-align: right;
 }
 
-
 /* 头像展示样式 */
 .avatar-readonly-container {
   display: flex;
@@ -1052,58 +905,6 @@ const handleSave = async () => {
   background-color: var(--bg-color-secondary);
 }
 
-
-
-
-
-
-/* 表情选择器面板样式 */
-.emoji-panel-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: transparent;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10000;
-  animation: fadeIn 0.2s ease;
-}
-
-.emoji-panel {
-  background: var(--bg-color-primary);
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-  overflow: hidden;
-  animation: scaleIn 0.2s ease;
-  max-width: 90vw;
-  max-height: 90vh;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes scaleIn {
-  from {
-    opacity: 0;
-    transform: scale(0.8);
-  }
-
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
 @media (max-width: 480px) {
   .mbti-selector {
     grid-template-columns: 1fr;
@@ -1120,6 +921,9 @@ const handleSave = async () => {
     width: fit-content;
   }
 
+  .theme-selector {
+    flex-direction: column;
+  }
 }
 
 /* 邮箱相关样式 */

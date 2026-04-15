@@ -29,38 +29,37 @@
       <form v-if="isLoggedIn" @submit.prevent="handlePublish" class="publish-form">
         <div class="publish-mode-hint">
           <SvgIcon name="post" width="18" height="18" />
-          <span>当前为纯文本发布模式，图片和视频请改用外链</span>
+          <span>当前为纯文本发布模式，支持 Markdown 语法。图片和视频请用外链。</span>
         </div>
 
         <div class="input-section">
-          <input v-model="form.title" type="text" class="title-input" placeholder="请输入标题" maxlength="100"
-            @input="validateForm" />
+          <input v-model="form.title" type="text" class="title-input" placeholder="请输入标题" maxlength="100" />
           <div class="char-count">{{ form.title.length }}/100</div>
         </div>
 
         <div class="input-section">
           <div class="content-input-wrapper">
-            <ContentEditableInput ref="contentTextarea" v-model="form.content" :input-class="'content-textarea'"
-              placeholder="请输入内容" :enable-mention="true" :mention-users="mentionUsers" @focus="handleContentFocus"
-              @blur="handleContentBlur" @keydown="handleInputKeydown" @mention="handleMentionInput" />
-            <div class="content-actions">
-              <button type="button" class="mention-btn" @click="toggleMentionPanel">
-                <SvgIcon name="mention" class="mention-icon" width="20" height="20" />
-              </button>
-              <button type="button" class="emoji-btn" @click="toggleEmojiPanel">
-                <SvgIcon name="emoji" class="emoji-icon" width="20" height="20" />
-              </button>
-            </div>
+            <textarea v-model="form.content" class="content-textarea" placeholder="请输入内容（支持 Markdown）" maxlength="2000"></textarea>
+            <div class="char-count">{{ form.content.length }}/2000</div>
           </div>
-          <div class="char-count">{{ form.content.length }}/2000</div>
+        </div>
 
-          <div v-if="showEmojiPanel" class="emoji-panel-overlay" v-click-outside="closeEmojiPanel">
-            <div class="emoji-panel" @click.stop>
-              <EmojiPicker @select="handleEmojiSelect" />
+        <div class="markdown-help">
+          <details>
+            <summary>Markdown 语法帮助</summary>
+            <div class="help-content">
+              <p><code># 标题</code> - 一级标题</p>
+              <p><code>## 标题</code> - 二级标题</p>
+              <p><code>**粗体**</code> - 粗体文字</p>
+              <p><code>*斜体*</code> - 斜体文字</p>
+              <p><code>[链接](url)</code> - 普通链接</p>
+              <p><code>![图片](url)</code> - 外链图片</p>
+              <p><code>[::md](url)</code> - 远程 Markdown</p>
+              <p><code>[::video](url)</code> - 视频或 B站 链接</p>
+              <p><code>\`代码\`</code> - 行内代码</p>
+              <p><code>```代码块```</code> - 代码块</p>
             </div>
-          </div>
-
-          <MentionModal :visible="showMentionPanel" @close="closeMentionPanel" @select="handleMentionSelect" />
+          </details>
         </div>
 
         <div class="category-section">
@@ -90,38 +89,27 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useAuthStore } from '@/stores/auth'
 import { useNavigationStore } from '@/stores/navigation'
-import { createPost, getPostDetail, updatePost, deletePost } from '@/api/posts'
+import { createPost, getPostDetail, updatePost } from '@/api/posts'
 import { getCategories } from '@/api/categories'
-import { useScrollLock } from '@/composables/useScrollLock'
-import { hasMentions, cleanMentions } from '@/utils/mentionParser'
 
 import SvgIcon from '@/components/SvgIcon.vue'
 import TagSelector from '@/components/TagSelector.vue'
 import DropdownSelect from '@/components/DropdownSelect.vue'
 import MessageToast from '@/components/MessageToast.vue'
-import EmojiPicker from '@/components/EmojiPicker.vue'
-import MentionModal from '@/components/mention/MentionModal.vue'
-import ContentEditableInput from '@/components/ContentEditableInput.vue'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 const authStore = useAuthStore()
 const navigationStore = useNavigationStore()
-const { lock, unlock } = useScrollLock()
-
-const contentTextarea = ref(null)
 
 const isPublishing = ref(false)
 const isSavingDraft = ref(false)
-const showEmojiPanel = ref(false)
-const showMentionPanel = ref(false)
-const isContentFocused = ref(false)
 
 const showToast = ref(false)
 const toastMessage = ref('')
@@ -140,9 +128,6 @@ const isEditMode = ref(false)
 
 const categories = ref([])
 
-// 提及用户数据（实际使用中应该从 API 获取）
-const mentionUsers = ref([])
-
 const canPublish = computed(() => {
   return Boolean(form.title.trim() && form.content.trim() && form.category_id)
 })
@@ -154,25 +139,15 @@ const canSaveDraft = computed(() => {
 // 登录状态检查
 const isLoggedIn = computed(() => userStore.isLoggedIn)
 
-// 打开登录模态框
-const openLoginModal = () => {
-  authStore.openLoginModal()
-}
-
 onMounted(async () => {
   navigationStore.scrollToTop('instant')
-  // 先加载分类列表，确保分类数据可用
   await loadCategories()
-  // 检查是否是编辑草稿模式
   const draftId = route.query.draftId
   const mode = route.query.mode
 
   if (draftId && mode === 'edit') {
     await loadDraftData(draftId)
   }
-})
-
-onUnmounted(() => {
 })
 
 const loadCategories = async () => {
@@ -190,10 +165,6 @@ const loadCategories = async () => {
   }
 }
 
-const validateForm = () => {
-  return true
-}
-
 const showMessage = (message, type = 'success') => {
   toastMessage.value = message
   toastType.value = type
@@ -204,16 +175,10 @@ const handleToastClose = () => {
   showToast.value = false
 }
 
-const handleBack = () => {
-  router.back()
-}
-
-// 跳转到笔记管理页面
 const goToPostManagement = () => {
   router.push('/post-management')
 }
 
-// 跳转到草稿箱页面
 const goToDraftBox = () => {
   router.push('/draft-box')
 }
@@ -222,122 +187,62 @@ const handleCategoryChange = (data) => {
   form.category_id = data.value
 }
 
-const handleContentFocus = () => {
-  isContentFocused.value = true
+// 重置表单
+const resetForm = () => {
+  form.title = ''
+  form.content = ''
+  form.tags = []
+  form.category_id = null
 }
 
-const handleContentBlur = () => {
-  setTimeout(() => {
-    isContentFocused.value = false
-  }, 100)
-}
+// 加载草稿数据
+const loadDraftData = async (draftId) => {
+  try {
+    const response = await getPostDetail(draftId)
+    if (response && response.originalData) {
+      const fullData = response
+      const draft = response.originalData
+      form.title = response.title || ''
+      form.content = draft.content || ''
 
-const toggleEmojiPanel = () => {
-  if (showEmojiPanel.value) {
-    closeEmojiPanel()
-  } else {
-    showEmojiPanel.value = true
-    lock()
-  }
-}
-
-const closeEmojiPanel = () => {
-  showEmojiPanel.value = false
-  unlock()
-}
-
-const toggleMentionPanel = () => {
-  // 如果要打开面板，先插入@符号
-  if (!showMentionPanel.value && contentTextarea.value && contentTextarea.value.insertAtSymbol) {
-    contentTextarea.value.insertAtSymbol()
-  }
-  showMentionPanel.value = !showMentionPanel.value
-}
-
-const closeMentionPanel = () => {
-  showMentionPanel.value = false
-  unlock()
-}
-
-// 处理@符号输入事件
-const handleMentionInput = () => {
-  // 当用户输入@符号时，自动打开mention面板
-  if (!showMentionPanel.value) {
-    showMentionPanel.value = true
-  }
-}
-
-// 处理表情选择
-const handleEmojiSelect = (emoji) => {
-  const emojiChar = emoji.i
-  const inputElement = contentTextarea.value
-
-  if (inputElement && inputElement.insertEmoji) {
-    // 使用ContentEditableInput组件的insertEmoji方法
-    inputElement.insertEmoji(emojiChar)
-  } else {
-    // 备用方案：直接添加到末尾
-    form.content += emojiChar
-    nextTick(() => {
-      if (inputElement) {
-        inputElement.focus()
+      if (draft.tags && Array.isArray(draft.tags)) {
+        form.tags = draft.tags.map(tag => {
+          if (typeof tag === 'object' && tag.name) {
+            return tag.name
+          }
+          return String(tag)
+        })
+      } else {
+        form.tags = []
       }
-    })
-  }
 
-  closeEmojiPanel()
-}
-
-// 处理好友选择
-const handleMentionSelect = (friend) => {
-  // 调用ContentEditableInput组件的selectMentionUser方法
-  if (contentTextarea.value && contentTextarea.value.selectMentionUser) {
-    contentTextarea.value.selectMentionUser(friend)
-  }
-
-  // 关闭mention面板
-  closeMentionPanel()
-}
-
-// 处理键盘事件，实现mention标签整体删除
-const handleInputKeydown = (event) => {
-  if (event.key === 'Backspace') {
-    const selection = window.getSelection()
-    if (selection.rangeCount > 0) {
-      const range = selection.getRangeAt(0)
-
-      // 如果没有选中内容且光标在mention链接后面
-      if (range.collapsed) {
-        const container = range.startContainer
-        const offset = range.startOffset
-
-        // 检查光标前面的节点是否是mention链接
-        let prevNode = null
-        if (container.nodeType === Node.TEXT_NODE && offset === 0) {
-          prevNode = container.previousSibling
-        } else if (container.nodeType === Node.ELEMENT_NODE && offset > 0) {
-          prevNode = container.childNodes[offset - 1]
-        }
-
-        // 如果前面的节点是mention链接，删除整个链接
-        if (prevNode && prevNode.nodeType === Node.ELEMENT_NODE &&
-          prevNode.classList && prevNode.classList.contains('mention-link')) {
-          event.preventDefault()
-          prevNode.remove()
-
-          // 更新form.content
-          form.content = event.target.textContent || ''
-          return
-        }
+      if (response.category && categories.value.length > 0) {
+        const categoryItem = categories.value.find(cat => cat.name === response.category)
+        form.category_id = categoryItem ? categoryItem.id : null
+      } else {
+        form.category_id = null
       }
+
+      currentDraftId.value = draftId
+      isEditMode.value = true
+
+      if ((Array.isArray(draft.images) && draft.images.length > 0) || fullData.video_url || fullData.type === 2) {
+        showMessage('检测到历史媒体内容，当前编辑不会再新增或修改媒体文件', 'info')
+      }
+
+      showMessage('草稿加载成功', 'success')
+    } else {
+      showMessage('草稿不存在或已被删除', 'error')
+      router.push('/draft-box')
     }
+  } catch (error) {
+    console.error('加载草稿失败:', error)
+    showMessage('加载草稿失败', 'error')
+    router.push('/draft-box')
   }
 }
-
-
 
 const handlePublish = async () => {
-  // 验证必填字段
   if (!form.title.trim()) {
     showMessage('请输入标题', 'error')
     return
@@ -364,7 +269,7 @@ const handlePublish = async () => {
       tags: form.tags,
       category_id: form.category_id,
       type: 1,
-      status: 2 // 发布状态：2=待审核
+      status: 2
     }
     showMessage('正在发布笔记...', 'info')
     let response
@@ -391,70 +296,7 @@ const handlePublish = async () => {
   }
 }
 
-
-// 重置表单
-const resetForm = () => {
-  form.title = ''
-  form.content = ''
-  form.tags = []
-  form.category_id = null
-}
-
-// 加载草稿数据
-const loadDraftData = async (draftId) => {
-  try {
-    const response = await getPostDetail(draftId)
-    if (response && response.originalData) {
-      const fullData = response
-      const draft = response.originalData
-      // 初始化表单数据
-      form.title = response.title || ''
-      form.content = draft.content || ''
-
-      // 处理标签数据：确保转换为字符串数组
-      if (draft.tags && Array.isArray(draft.tags)) {
-        form.tags = draft.tags.map(tag => {
-          // 如果是对象格式，提取name字段
-          if (typeof tag === 'object' && tag.name) {
-            return tag.name
-          }
-          // 如果已经是字符串，直接返回
-          return String(tag)
-        })
-      } else {
-        form.tags = []
-      }
-
-      // 根据分类名称找到分类ID
-      if (response.category && categories.value.length > 0) {
-        const categoryItem = categories.value.find(cat => cat.name === response.category)
-        form.category_id = categoryItem ? categoryItem.id : null
-      } else {
-        form.category_id = null
-      }
-
-      // 设置编辑模式
-      currentDraftId.value = draftId
-      isEditMode.value = true
-
-      if ((Array.isArray(draft.images) && draft.images.length > 0) || fullData.video_url || fullData.type === 2) {
-        showMessage('检测到历史媒体内容，当前编辑不会再新增或修改媒体文件', 'info')
-      }
-
-      showMessage('草稿加载成功', 'success')
-    } else {
-      showMessage('草稿不存在或已被删除', 'error')
-      router.push('/draft-box')
-    }
-  } catch (error) {
-    console.error('加载草稿失败:', error)
-    showMessage('加载草稿失败', 'error')
-    router.push('/draft-box')
-  }
-}
-
 const handleSaveDraft = async () => {
-  // 验证是否有内容可以保存
   if (!form.title.trim() && !form.content.trim()) {
     showMessage('请输入标题或内容', 'error')
     return
@@ -471,17 +313,15 @@ const handleSaveDraft = async () => {
       tags: form.tags || [],
       category_id: form.category_id || null,
       type: 1,
-      status: 1 // 草稿状态
+      status: 1
     }
 
     showMessage('正在保存草稿...', 'info')
 
     let response
     if (isEditMode.value && currentDraftId.value) {
-      // 更新现有草稿
       response = await updatePost(currentDraftId.value, draftData)
     } else {
-      // 创建新草稿
       response = await createPost(draftData)
       if (response.success && response.data) {
         currentDraftId.value = response.data.id
@@ -491,11 +331,8 @@ const handleSaveDraft = async () => {
 
     if (response.success) {
       showMessage('草稿保存成功！', 'success')
-
-      // 清空表单
       resetForm()
 
-      // 跳转到草稿箱页面
       setTimeout(() => {
         router.push('/draft-box')
       }, 1500)
@@ -594,10 +431,168 @@ const handleSaveDraft = async () => {
   color: var(--text-color-primary);
 }
 
-.header-actions {
+.publish-content {
+  padding: 1rem;
+  max-width: 600px;
+  margin: 0 auto;
+  background-color: var(--bg-color-primary);
+  transition: background-color 0.2s ease;
+}
+
+.publish-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.publish-mode-hint {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-color-primary);
+  border-radius: 12px;
+  background: var(--bg-color-secondary);
+  color: var(--text-color-secondary);
+  font-size: 14px;
+}
+
+.input-section {
+  position: relative;
+}
+
+.title-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color-primary);
+  border-radius: 8px;
+  background: var(--bg-color-primary);
+  color: var(--text-color-primary);
+  font-size: 16px;
+  font-weight: bold;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.title-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.title-input::placeholder {
+  color: var(--text-color-secondary);
+}
+
+.content-input-wrapper {
+  position: relative;
+  border: 1px solid var(--border-color-primary);
+  border-radius: 8px;
+  background: var(--bg-color-primary);
+  transition: all 0.2s ease;
+}
+
+.content-input-wrapper:focus-within {
+  border-color: var(--primary-color);
+}
+
+.content-textarea {
+  width: 100%;
+  padding: 12px;
+  padding-bottom: 2.5rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-color-primary);
+  font-size: 16px;
+  line-height: 1.6;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  min-height: 200px;
+  box-sizing: border-box;
+  caret-color: var(--primary-color);
+  resize: vertical;
+}
+
+.content-textarea:focus {
+  outline: none;
+}
+
+.content-textarea::placeholder {
+  color: var(--text-color-secondary);
+  font-family: inherit;
+}
+
+/* Markdown 帮助 */
+.markdown-help {
+  margin-top: 0.5rem;
+}
+
+.markdown-help details {
+  border-radius: 8px;
+  background: var(--bg-color-secondary);
+  border: 1px solid var(--border-color-primary);
+}
+
+.markdown-help summary {
+  padding: 10px 14px;
+  cursor: pointer;
+  color: var(--text-color-secondary);
+  font-size: 14px;
+  user-select: none;
+}
+
+.markdown-help .help-content {
+  padding: 10px 14px;
+  border-top: 1px solid var(--border-color-primary);
+}
+
+.markdown-help .help-content p {
+  margin: 6px 0;
+  font-size: 13px;
+  color: var(--text-color-secondary);
+}
+
+.markdown-help .help-content code {
+  background: var(--bg-color-primary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 13px;
+}
+
+.char-count {
+  position: absolute;
+  bottom: 0.5rem;
+  right: 0.75rem;
+  font-size: 0.8rem;
+  color: var(--text-color-secondary);
+  background: var(--bg-color-primary);
+  padding: 0.25rem;
+  border-radius: 4px;
+}
+
+.section-title {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-color-primary);
+  margin-bottom: 0.75rem;
+}
+
+.category-section {
+  margin-bottom: 1rem;
+}
+
+.tag-section {
+  margin-bottom: 1rem;
+}
+
+.publish-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  padding: 2rem 1rem;
+  margin-top: 2rem;
+  background: var(--bg-color-primary);
 }
 
 .draft-btn {
@@ -650,480 +645,6 @@ const handleSaveDraft = async () => {
 .publish-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-.loading-icon {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.publish-content {
-  padding: 1rem;
-  max-width: 600px;
-  margin: 0 auto;
-  background-color: var(--bg-color-primary);
-  transition: background-color 0.2s ease;
-}
-
-.publish-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.publish-mode-hint {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
-  border: 1px solid var(--border-color-primary);
-  border-radius: 12px;
-  background: var(--bg-color-secondary);
-  color: var(--text-color-secondary);
-  font-size: 14px;
-}
-
-.upload-section {
-  margin-bottom: 0.5rem;
-}
-
-.upload-tabs {
-  display: flex;
-  margin-bottom: 1rem;
-  border-bottom: 1px solid var(--border-color-primary);
-}
-
-.tab-btn {
-  padding: 12px 24px;
-  border: none;
-  background: transparent;
-  color: var(--text-color-secondary);
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border-bottom: 2px solid transparent;
-  position: relative;
-}
-
-.tab-btn:hover {
-  color: var(--text-color-primary);
-}
-
-.tab-btn.active {
-  color: var(--primary-color);
-  border-bottom-color: var(--primary-color);
-}
-
-.upload-content {
-  margin-bottom: 1rem;
-}
-
-.image-upload-section {
-  margin-bottom: 0.5rem;
-}
-
-.input-section {
-  position: relative;
-}
-
-.title-input {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid var(--border-color-primary);
-  border-radius: 8px;
-  background: var(--bg-color-primary);
-  color: var(--text-color-primary);
-  font-size: 16px;
-  font-weight: bold;
-  transition: all 0.2s ease;
-  box-sizing: border-box;
-}
-
-.title-input:focus {
-  outline: none;
-  border-color: var(--primary-color);
-}
-
-.title-input::placeholder {
-  color: var(--text-color-secondary);
-}
-
-.content-input-wrapper {
-  position: relative;
-  border: 1px solid var(--border-color-primary);
-  border-radius: 8px;
-  background: var(--bg-color-primary);
-  transition: all 0.2s ease;
-}
-
-.content-input-wrapper:focus-within {
-  border-color: var(--primary-color);
-}
-
-.content-textarea {
-  width: 100%;
-  padding: 1rem;
-  padding-bottom: 3rem;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--text-color-primary);
-  font-size: 16px;
-  line-height: 1.5;
-  transition: all 0.2s ease;
-  min-height: 120px;
-  box-sizing: border-box;
-  caret-color: var(--primary-color);
-}
-
-.content-textarea:focus {
-  outline: none;
-}
-
-.content-textarea:empty:before {
-  content: attr(placeholder);
-  color: var(--text-color-secondary);
-  pointer-events: none;
-}
-
-.content-actions {
-  position: absolute;
-  bottom: 0.5rem;
-  left: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.emoji-btn,
-.mention-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: none;
-  background: transparent;
-  color: var(--text-color-secondary);
-  border-radius: 50%;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.emoji-btn:hover,
-.mention-btn:hover {
-  background: var(--bg-color-secondary);
-  color: var(--text-color-primary);
-}
-
-.emoji-icon,
-.mention-icon {
-  width: 20px;
-  height: 20px;
-}
-
-.emoji-panel-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: transparent;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  animation: fadeIn 0.2s ease;
-}
-
-.emoji-panel {
-  background: var(--bg-color-primary);
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-  overflow: hidden;
-  animation: scaleIn 0.2s ease;
-  max-width: 90vw;
-  max-height: 80vh;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes scaleIn {
-  from {
-    opacity: 0;
-    transform: scale(0.8);
-  }
-
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.char-count {
-  position: absolute;
-  bottom: 0.5rem;
-  right: 0.75rem;
-  font-size: 0.8rem;
-  color: var(--text-color-secondary);
-  background: var(--bg-color-primary);
-  padding: 0.25rem;
-  transition: background-color 0.2s ease;
-}
-
-
-.section-title {
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: var(--text-color-primary);
-  margin-bottom: 0.75rem;
-}
-
-.tag-input-wrapper {
-  border: 1px solid var(--border-color-primary);
-  border-radius: 8px;
-  background: var(--bg-color-primary);
-  padding: 0.75rem;
-  transition: border-color 0.2s ease;
-}
-
-.tag-input-wrapper:focus-within {
-  border-color: var(--primary-color);
-}
-
-.selected-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
-}
-
-.selected-tag {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.4rem 0.6rem;
-  background: var(--primary-color);
-  color: var(--button-text-color);
-  border-radius: 16px;
-  font-size: 0.8rem;
-  animation: fadeIn 0.2s ease;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: scale(0.8);
-  }
-
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.remove-tag-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  border: none;
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-  border-radius: 50%;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 12px;
-  line-height: 1;
-}
-
-.remove-tag-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
-  transform: scale(1.1);
-}
-
-.tag-input-container {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.tag-input {
-  flex: 1;
-  border: none;
-  background: transparent;
-  color: var(--text-color-primary);
-  font-size: 0.9rem;
-  outline: none;
-  padding: 0.25rem 0;
-}
-
-.tag-input:disabled {
-  background-color: var(--disabled-bg);
-  cursor: not-allowed;
-}
-
-.tag-input::placeholder {
-  color: var(--text-color-secondary);
-}
-
-.add-tag-btn {
-  padding: 0.25rem 0.75rem;
-  background: var(--primary-color);
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.add-tag-btn:hover {
-  background: var(--primary-color-dark);
-}
-
-.tag-suggestions {
-  margin-top: 0.75rem;
-  padding: 0.75rem;
-  background: var(--bg-color-secondary);
-  border-radius: 8px;
-  border: 1px solid var(--border-color-primary);
-}
-
-.suggestions-title {
-  font-size: 0.8rem;
-  color: var(--text-color-secondary);
-  margin-bottom: 0.5rem;
-}
-
-.suggestions-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.tag-suggestion {
-  padding: 0.4rem 0.8rem;
-  border: 1px solid var(--border-color-primary);
-  border-radius: 16px;
-  background: var(--bg-color-primary);
-  color: var(--text-color-primary);
-  font-size: 0.8rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.tag-suggestion:hover {
-  border-color: var(--primary-color);
-  background: var(--primary-color);
-  color: white;
-}
-
-.recommended-tags {
-  margin-top: 0.75rem;
-  padding: 0.75rem;
-  background: var(--bg-color-secondary);
-  border-radius: 8px;
-  border: 1px solid var(--border-color-primary);
-}
-
-.recommendations-title {
-  font-size: 0.8rem;
-  color: var(--text-color-secondary);
-  margin-bottom: 0.5rem;
-}
-
-.tags-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.tag-item {
-  padding: 0.4rem 0.8rem;
-  border: 1px solid var(--border-color-primary);
-  border-radius: 16px;
-  background: var(--bg-color-primary);
-  color: var(--text-color-primary);
-  font-size: 0.8rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.tag-item:hover {
-  border-color: var(--primary-color);
-  background: var(--primary-color);
-  color: white;
-}
-
-.tag-item.active {
-  background: var(--primary-color);
-  color: white;
-  border-color: var(--primary-color);
-}
-
-.category-section {
-  margin-bottom: 1rem;
-}
-
-
-
-.publish-actions {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 1rem;
-  padding: 2rem 1rem;
-  margin-top: 2rem;
-  background: var(--bg-color-primary);
-}
-
-.publish-actions .cancel-btn {
-  padding: 0.75rem 1.5rem;
-  background: transparent;
-  color: var(--text-color-secondary);
-  border: 1px solid var(--border-color-primary);
-  border-radius: 8px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  min-width: 100px;
-}
-
-
-
-.publish-actions .loading-icon {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 /* 响应式设计 */
@@ -1192,21 +713,17 @@ const handleSaveDraft = async () => {
   line-height: 1.5;
 }
 
-.tag-input {
-  min-width: 80px;
-}
-
 .publish-actions {
   padding: 1.5rem 0.75rem;
   gap: 0.75rem;
+  flex-direction: column;
 }
 
-.publish-actions .cancel-btn,
 .publish-actions .draft-btn,
 .publish-actions .publish-btn {
-  padding: 0.6rem 1.2rem;
-  font-size: 0.85rem;
-  min-width: 80px;
+  width: 100%;
+  padding: 0.75rem;
+  font-size: 0.9rem;
 }
 
 @media (max-width: 480px) {
@@ -1218,33 +735,8 @@ const handleSaveDraft = async () => {
     margin-left: 12px;
   }
 
-  .header-actions {
-    gap: 0.5rem;
-  }
-
-  .cancel-btn {
-    padding: 0.4rem 0.8rem;
-    font-size: 0.8rem;
-  }
-
-  .draft-btn {
-    padding: 0.4rem 0.8rem;
-    font-size: 0.8rem;
-  }
-
-  .publish-btn {
-    padding: 0.4rem 0.8rem;
-    font-size: 0.8rem;
-  }
-
   .publish-content {
     padding: 1rem;
-  }
-
-
-  .tag-input {
-    min-width: 60px;
-    font-size: 0.85rem;
   }
 
   .publish-actions {
@@ -1253,43 +745,10 @@ const handleSaveDraft = async () => {
     flex-direction: column;
   }
 
-}
-
-.text-image-section {
-  margin-top: 0.75rem;
-  display: flex;
-  justify-content: flex-start;
-}
-
-.text-image-btn {
-  display: flex;
-  align-items: center;
-  padding: 0.4rem;
-  background: var(--primary-color);
-  color: var(--button-text-color);
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.2s ease;
-}
-
-.text-image-btn:hover {
-  background: var(--primary-color-dark);
-}
-
-.text-image-btn:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
-}
-
-.publish-actions .cancel-btn,
-.publish-actions .draft-btn,
-.publish-actions .publish-btn {
-  width: 100%;
-  padding: 0.75rem;
-  font-size: 0.9rem;
-  min-width: unset;
+  .publish-actions .draft-btn,
+  .publish-actions .publish-btn {
+    padding: 0.6rem 0.8rem;
+    font-size: 0.85rem;
+  }
 }
 </style>

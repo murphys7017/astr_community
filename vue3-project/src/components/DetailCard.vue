@@ -161,7 +161,7 @@
             <div class="post-content">
               <h2 class="post-title">{{ postData.title }}</h2>
               <p class="post-text">
-                <ContentRenderer :text="postData.content" />
+                <MarkdownRenderer :content="postData.content" />
               </p>
               <div class="post-tags">
                 <span v-for="tag in postData.tags" :key="tag" class="tag clickable-tag" @click="handleTagClick(tag)">#{{
@@ -333,9 +333,9 @@
                     </div>
                   </div>
                   <ContentEditableInput ref="focusedInput" v-model="commentInput" :input-class="'comment-input'"
-                    :placeholder="replyingTo ? `回复 ${replyingTo.username}：` : '说点什么...'" :enable-mention="true"
-                    :mention-users="mentionUsers" :enable-ctrl-enter-send="true" @focus="handleInputFocus"
-                    @mention="handleMentionInput" @send="handleSendComment" />
+                    :placeholder="replyingTo ? `回复 ${replyingTo.username}：` : '说点什么...'" :enable-mention="false"
+                    :enable-ctrl-enter-send="true" @focus="handleInputFocus"
+                    @send="handleSendComment" />
                 </div>
 
 
@@ -361,9 +361,6 @@
 
               <div class="focused-actions-section">
                 <div class="emoji-section">
-                  <button class="mention-btn" @click="toggleMentionPanel">
-                    <SvgIcon name="mention" class="mention-icon" width="24" height="24" />
-                  </button>
                   <button class="emoji-btn" @click="toggleEmojiPanel">
                     <SvgIcon name="emoji" class="emoji-icon" width="24" height="24" />
                   </button>
@@ -417,6 +414,7 @@ import EmojiPicker from '@/components/EmojiPicker.vue'
 import MentionModal from '@/components/mention/MentionModal.vue'
 import ContentRenderer from './ContentRenderer.vue'
 import ContentEditableInput from './ContentEditableInput.vue'
+import MarkdownRenderer from './MarkdownRenderer.vue'
 import ImageViewer from './ImageViewer.vue'
 import VerifiedBadge from './VerifiedBadge.vue'
 import { useThemeStore } from '@/stores/theme'

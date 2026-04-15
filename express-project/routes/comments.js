@@ -4,7 +4,6 @@ const { HTTP_STATUS, RESPONSE_CODES, ERROR_MESSAGES } = require('../constants');
 const { pool } = require('../config/config');
 const { authenticateToken, optionalAuth } = require('../middleware/auth');
 const NotificationHelper = require('../utils/notificationHelper');
-const { extractMentionedUsers, hasMentions } = require('../utils/mentionParser');
 const { sanitizeContent } = require('../utils/contentSecurity');
 
 const BLOCKED_MEDIA_TAG_REGEX = /<(img|video|audio|iframe)\b/i;
@@ -177,38 +176,6 @@ router.post('/', authenticateToken, async (req, res) => {
         if (postUserId !== userId) {
           const notificationData = NotificationHelper.createCommentPostNotification(postUserId, userId, post_id, commentId);
           await NotificationHelper.insertNotification(pool, notificationData);
-        }
-      }
-    }
-
-    // 处理@用户通知
-    if (hasMentions(content)) {
-      const mentionedUsers = extractMentionedUsers(content);
-
-      for (const mentionedUser of mentionedUsers) {
-        try {
-          // 根据 AstrBot ID查找用户的自增ID
-          const [userRows] = await pool.execute('SELECT id FROM users WHERE user_id = ?', [mentionedUser.userId]);
-
-          if (userRows.length > 0) {
-            const mentionedUserId = userRows[0].id;
-
-            // 不给自己发通知
-            if (mentionedUserId !== userId) {
-              // 创建@用户通知
-              const mentionNotificationData = NotificationHelper.createNotificationData({
-                userId: mentionedUserId,
-                senderId: userId,
-                type: NotificationHelper.TYPES.MENTION_COMMENT,
-                targetId: post_id,
-                commentId: commentId
-              });
-
-              await NotificationHelper.insertNotification(pool, mentionNotificationData);
-            }
-          }
-        } catch (error) {
-          console.error('处理@用户通知失败 - 用户: %s:', mentionedUser.userId, error);
         }
       }
     }

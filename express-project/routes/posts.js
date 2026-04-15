@@ -4,7 +4,6 @@ const { HTTP_STATUS, RESPONSE_CODES, ERROR_MESSAGES } = require('../constants');
 const { pool } = require('../config/config');
 const { optionalAuth, authenticateToken } = require('../middleware/auth');
 const NotificationHelper = require('../utils/notificationHelper');
-const { extractMentionedUsers, hasMentions } = require('../utils/mentionParser');
 const { batchCleanupFiles } = require('../utils/fileCleanup');
 const { sanitizeContent } = require('../utils/contentSecurity');
 
@@ -490,37 +489,6 @@ router.post('/', authenticateToken, async (req, res) => {
       }
     }
 
-    // 处理@用户通知（仅在已发布状态时）
-    if (status === 0 && content && hasMentions(content)) {
-      const mentionedUsers = extractMentionedUsers(content);
-
-      for (const mentionedUser of mentionedUsers) {
-        try {
-          // 根据 AstrBot ID查找用户的自增ID
-          const [userRows] = await pool.execute('SELECT id FROM users WHERE user_id = ?', [mentionedUser.userId]);
-
-          if (userRows.length > 0) {
-            const mentionedUserId = userRows[0].id;
-
-            // 不给自己发通知
-            if (mentionedUserId !== userId) {
-              // 创建@用户通知
-              const mentionNotificationData = NotificationHelper.createNotificationData({
-                userId: mentionedUserId,
-                senderId: userId,
-                type: NotificationHelper.TYPES.MENTION,
-                targetId: postId
-              });
-
-              await NotificationHelper.insertNotification(pool, mentionNotificationData);
-            }
-          }
-        } catch (error) {
-          console.error('处理@用户通知失败 - 用户: %s:', mentionedUser.userId, error);
-        }
-      }
-    }
-
     console.log(`✅ 创建笔记成功 - 用户ID: ${userId}, 笔记ID: ${postId}, 类型: ${postType}`);
 
     // 如果笔记状态为待审核(status=2)，在audit表中添加审核记录
@@ -878,77 +846,6 @@ router.put('/:id', authenticateToken, async (req, res) => {
         // 只对新增的标签增加使用次数（不在旧标签列表中的）
         if (tagsToAdd.includes(tagName)) {
           await pool.execute('UPDATE tags SET use_count = use_count + 1 WHERE id = ?', [tagId]);
-        }
-      }
-    }
-
-    // 处理@用户通知的逻辑
-    if (status === 0 && content) { // 只有在已发布状态下才处理@通知
-      // 获取新内容中的@用户
-      const newMentionedUsers = hasMentions(content) ? extractMentionedUsers(content) : [];
-      const newMentionedUserIds = new Set(newMentionedUsers.map(user => user.userId));
-
-      // 获取原内容中的@用户（如果不是从草稿变为发布）
-      let oldMentionedUserIds = new Set();
-      if (!wasOriginallyDraft && originalContent && hasMentions(originalContent)) {
-        const oldMentionedUsers = extractMentionedUsers(originalContent);
-        oldMentionedUserIds = new Set(oldMentionedUsers.map(user => user.userId));
-      }
-
-      // 找出需要删除通知的用户（在旧列表中但不在新列表中）
-      const usersToRemoveNotification = [...oldMentionedUserIds].filter(userId => !newMentionedUserIds.has(userId));
-
-      // 找出需要添加通知的用户（在新列表中但不在旧列表中）
-      const usersToAddNotification = [...newMentionedUserIds].filter(userId => !oldMentionedUserIds.has(userId));
-
-      // 删除不再需要的@通知
-      for (const mentionedUserId of usersToRemoveNotification) {
-        try {
-          // 根据 AstrBot ID查找用户的自增ID
-          const [userRows] = await pool.execute('SELECT id FROM users WHERE user_id = ?', [mentionedUserId]);
-
-          if (userRows.length > 0) {
-            const mentionedUserAutoId = userRows[0].id;
-
-            // 删除该用户的@通知
-            await NotificationHelper.deleteNotifications(pool, {
-              type: NotificationHelper.TYPES.MENTION,
-              targetId: postId,
-              senderId: userId,
-              userId: mentionedUserAutoId
-            });
-          }
-        } catch (error) {
-          console.error('删除@用户通知失败 - 用户: %s:', mentionedUserId, error);
-        }
-      }
-
-      // 添加新的@通知
-      for (const mentionedUserId of usersToAddNotification) {
-        try {
-          // 根据 AstrBot ID查找用户的自增ID
-          const [userRows] = await pool.execute('SELECT id FROM users WHERE user_id = ?', [mentionedUserId]);
-
-          if (userRows.length > 0) {
-            const mentionedUserAutoId = userRows[0].id;
-
-            // 不给自己发通知
-            if (mentionedUserAutoId !== userId) {
-              // 创建@用户通知
-              const mentionNotificationData = NotificationHelper.createNotificationData({
-                userId: mentionedUserAutoId,
-                senderId: userId,
-                type: NotificationHelper.TYPES.MENTION,
-                targetId: postId
-              });
-
-              await NotificationHelper.insertNotification(pool, mentionNotificationData);
-
-              console.log('添加@通知 - 笔记ID: %s, 用户: %s', postId, mentionedUserId);
-            }
-          }
-        } catch (error) {
-          console.error('处理@用户通知失败 - 用户: %s:', mentionedUserId, error);
         }
       }
     }
