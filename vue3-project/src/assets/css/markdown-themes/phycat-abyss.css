@@ -1,0 +1,193 @@
+/* Phycat Abyss Markdown 主题 - Typora GitHub Dark 风格 */
+
+/* 基础样式 */
+.markdown-body {
+  color: #c9d1d9;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  font-size: 16px;
+  line-height: 1.6;
+  word-wrap: break-word;
+}
+
+/* 标题 */
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #e0e0e0;
+}
+
+.markdown-body h1 {
+  font-size: 2em;
+  border-bottom: 1px solid #30363d;
+  padding-bottom: 0.3em;
+}
+
+.markdown-body h2 {
+  font-size: 1.5em;
+  border-bottom: 1px solid #30363d;
+  padding-bottom: 0.3em;
+}
+
+.markdown-body h3 {
+  font-size: 1.25em;
+  color: #c0c0c0;
+}
+
+.markdown-body h4 {
+  font-size: 1em;
+  color: #b0b0b0;
+}
+
+/* 段落 */
+.markdown-body p {
+  margin-top: 0;
+  margin-bottom: 1em;
+}
+
+/* 列表 */
+.markdown-body ul,
+.markdown-body ol {
+  margin-top: 0;
+  margin-bottom: 1em;
+  padding-left: 2em;
+}
+
+.markdown-body ul {
+  list-style-type: disc;
+}
+
+.markdown-body ul ul {
+  list-style-type: circle;
+}
+
+.markdown-body ul ul ul {
+  list-style-type: square;
+}
+
+.markdown-body ol {
+  list-style-type: decimal;
+}
+
+/* 代码 - 行内 */
+.markdown-body code {
+  background: #161b22;
+  border-radius: 3px;
+  font-size: 0.85em;
+  padding: 0.2em 0.4em;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  color: #f97583;
+}
+
+/* 代码 - 块 */
+.markdown-body pre {
+  background: #161b22;
+  border-radius: 6px;
+  padding: 16px;
+  overflow: auto;
+  margin-top: 0;
+  margin-bottom: 1em;
+  font-size: 0.9em;
+  line-height: 1.45;
+  border: 1px solid #30363d;
+}
+
+.markdown-body pre code {
+  background: transparent;
+  padding: 0;
+  font-size: 1em;
+  color: #c9d1d9;
+}
+
+/* 引用块 */
+.markdown-body blockquote {
+  margin: 0;
+  padding: 0 1em;
+  color: #8b949e;
+  border-left: 0.25em solid #30363d;
+  margin-bottom: 1em;
+}
+
+.markdown-body blockquote > :first-child {
+  margin-top: 0;
+}
+
+.markdown-body blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+/* 表格 */
+.markdown-body table {
+  border-spacing: 0;
+  border-collapse: collapse;
+  margin-bottom: 1em;
+  width: 100%;
+  display: block;
+  overflow: auto;
+}
+
+.markdown-body table th,
+.markdown-body table td {
+  border: 1px solid #30363d;
+  padding: 6px 13px;
+}
+
+.markdown-body table th {
+  font-weight: 600;
+  background: #21262d;
+  color: #e0e0e0;
+}
+
+.markdown-body table tr {
+  background: #0d1117;
+  border-top: 1px solid #21262d;
+}
+
+.markdown-body table tr:nth-child(2n) {
+  background: #161b22;
+}
+
+/* 链接 */
+.markdown-body a {
+  color: #58a6ff;
+  text-decoration: none;
+}
+
+.markdown-body a:hover {
+  text-decoration: underline;
+}
+
+/* 图片 */
+.markdown-body img {
+  max-width: 100%;
+  box-sizing: border-box;
+  display: block;
+  border-radius: 4px;
+  border: 1px solid #30363d;
+}
+
+/* 分割线 */
+.markdown-body hr {
+  height: 0.25em;
+  padding: 0;
+  margin: 24px 0;
+  background: #21262d;
+  border: 0;
+}
+
+/* 删除线 */
+.markdown-body del {
+  color: #6e7681;
+}
+
+/* 任务列表 */
+.markdown-body input[type="checkbox"] {
+  margin-right: 0.5em;
+  accent-color: #58a6ff;
+}

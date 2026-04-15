@@ -20,7 +20,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import MarkdownIt from 'markdown-it'
 import RemoteMarkdown from './RemoteMarkdown.vue'
 import VideoEmbed from './VideoEmbed.vue'
@@ -35,6 +35,7 @@ const props = defineProps({
     type: Set,
     default: () => new Set()
   },
+  // 可选的外部主题覆盖（如果传入则使用，否则从 localStorage 读取）
   theme: {
     type: String,
     default: ''
@@ -48,14 +49,62 @@ const md = new MarkdownIt({
   breaks: true
 })
 
-// 主题相关
-const STORAGE_KEY = 'markdownTheme'
-const DEFAULT_THEME = 'phycat-mint'
+// Markdown 主题相关
+const MARKDOWN_THEME_STORAGE_KEY = 'markdownTheme'
+const DEFAULT_MARKDOWN_THEME = 'phycat-mint'
+const SUPPORTED_THEMES = ['phycat-mint', 'phycat-abyss']
 
-const currentTheme = ref(DEFAULT_THEME)
+const currentTheme = ref(DEFAULT_MARKDOWN_THEME)
+let currentStyleLink = null
 
 const themeClass = computed(() => {
   return `markdown-theme--${currentTheme.value}`
+})
+
+// 加载 Markdown 主题 CSS
+const loadMarkdownThemeCSS = (theme) => {
+  if (!SUPPORTED_THEMES.includes(theme)) {
+    theme = DEFAULT_MARKDOWN_THEME
+  }
+
+  // 移除之前的样式链接
+  if (currentStyleLink) {
+    currentStyleLink.remove()
+    currentStyleLink = null
+  }
+
+  // 创建新的样式链接
+  currentStyleLink = document.createElement('link')
+  currentStyleLink.rel = 'stylesheet'
+  currentStyleLink.href = `/css/markdown-themes/${theme}.css`
+  document.head.appendChild(currentStyleLink)
+}
+
+// 从 localStorage 加载 Markdown 主题
+const loadTheme = () => {
+  // 优先使用 props.theme（如果是有效的）
+  if (props.theme && SUPPORTED_THEMES.includes(props.theme)) {
+    currentTheme.value = props.theme
+  } else {
+    // 否则从 localStorage 读取
+    try {
+      const saved = localStorage.getItem(MARKDOWN_THEME_STORAGE_KEY)
+      if (saved && SUPPORTED_THEMES.includes(saved)) {
+        currentTheme.value = saved
+      }
+    } catch (e) {
+      console.error('Failed to load markdown theme:', e)
+    }
+  }
+  loadMarkdownThemeCSS(currentTheme.value)
+}
+
+// 监听 props.theme 变化
+watch(() => props.theme, (newTheme) => {
+  if (newTheme && SUPPORTED_THEMES.includes(newTheme)) {
+    currentTheme.value = newTheme
+    loadMarkdownThemeCSS(newTheme)
+  }
 })
 
 // 当前渲染链的 URLs（包括父链）
@@ -112,18 +161,6 @@ const parsedSegments = computed(() => {
   return segments
 })
 
-// 从 localStorage 加载主题
-const loadTheme = () => {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved === 'phycat-mint' || saved === 'phycat-abyss') {
-      currentTheme.value = saved
-    }
-  } catch (e) {
-    console.error('Failed to load theme:', e)
-  }
-}
-
 // 处理远程 Markdown 抓取成功（用于后续扩展）
 const handleRemoteFetchSuccess = (content) => {
   // 目前不需要额外处理，RemoteMarkdown 组件自己会渲染
@@ -146,224 +183,5 @@ onMounted(() => {
 
 .markdown-segment {
   margin-bottom: 1em;
-}
-
-/* Phycat Mint 主题 */
-.markdown-theme--phycat-mint .markdown-body {
-  color: #333;
-}
-
-.markdown-theme--phycat-mint .markdown-body h1,
-.markdown-theme--phycat-mint .markdown-body h2,
-.markdown-theme--phycat-mint .markdown-body h3,
-.markdown-theme--phycat-mint .markdown-body h4,
-.markdown-theme--phycat-mint .markdown-body h5,
-.markdown-theme--phycat-mint .markdown-body h6 {
-  margin-top: 1.5em;
-  margin-bottom: 0.5em;
-  font-weight: 600;
-  line-height: 1.25;
-}
-
-.markdown-theme--phycat-mint .markdown-body h1 { font-size: 2em; border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }
-.markdown-theme--phycat-mint .markdown-body h2 { font-size: 1.5em; border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }
-.markdown-theme--phycat-mint .markdown-body h3 { font-size: 1.25em; }
-.markdown-theme--phycat-mint .markdown-body h4 { font-size: 1em; }
-
-.markdown-theme--phycat-mint .markdown-body p {
-  margin-top: 0;
-  margin-bottom: 1em;
-}
-
-.markdown-theme--phycat-mint .markdown-body ul,
-.markdown-theme--phycat-mint .markdown-body ol {
-  margin-top: 0;
-  margin-bottom: 1em;
-  padding-left: 2em;
-}
-
-.markdown-theme--phycat-mint .markdown-body code {
-  background: #f6f8fa;
-  border-radius: 3px;
-  font-size: 0.85em;
-  padding: 0.2em 0.4em;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-}
-
-.markdown-theme--phycat-mint .markdown-body pre {
-  background: #f6f8fa;
-  border-radius: 6px;
-  padding: 16px;
-  overflow: auto;
-  margin-top: 0;
-  margin-bottom: 1em;
-}
-
-.markdown-theme--phycat-mint .markdown-body pre code {
-  background: transparent;
-  padding: 0;
-}
-
-.markdown-theme--phycat-mint .markdown-body blockquote {
-  margin: 0;
-  padding: 0 1em;
-  color: #6a737d;
-  border-left: 0.25em solid #dfe2e5;
-  margin-bottom: 1em;
-}
-
-.markdown-theme--phycat-mint .markdown-body table {
-  border-spacing: 0;
-  border-collapse: collapse;
-  margin-bottom: 1em;
-  width: 100%;
-}
-
-.markdown-theme--phycat-mint .markdown-body table th,
-.markdown-theme--phycat-mint .markdown-body table td {
-  border: 1px solid #dfe2e5;
-  padding: 6px 13px;
-}
-
-.markdown-theme--phycat-mint .markdown-body table tr {
-  background: #fff;
-  border-top: 1px solid #c6cbd1;
-}
-
-.markdown-theme--phycat-mint .markdown-body table tr:nth-child(2n) {
-  background: #f6f8fa;
-}
-
-.markdown-theme--phycat-mint .markdown-body a {
-  color: #0366d6;
-  text-decoration: none;
-}
-
-.markdown-theme--phycat-mint .markdown-body a:hover {
-  text-decoration: underline;
-}
-
-.markdown-theme--phycat-mint .markdown-body img {
-  max-width: 100%;
-  box-sizing: content-box;
-}
-
-.markdown-theme--phycat-mint .markdown-body hr {
-  height: 0.25em;
-  padding: 0;
-  margin: 24px 0;
-  background: #e1e4e8;
-  border: 0;
-}
-
-/* Phycat Abyss 主题 */
-.markdown-theme--phycat-abyss .markdown-body {
-  color: #c9d1d9;
-}
-
-.markdown-theme--phycat-abyss .markdown-body h1,
-.markdown-theme--phycat-abyss .markdown-body h2,
-.markdown-theme--phycat-abyss .markdown-body h3,
-.markdown-theme--phycat-abyss .markdown-body h4,
-.markdown-theme--phycat-abyss .markdown-body h5,
-.markdown-theme--phycat-abyss .markdown-body h6 {
-  margin-top: 1.5em;
-  margin-bottom: 0.5em;
-  font-weight: 600;
-  line-height: 1.25;
-  color: #eee;
-}
-
-.markdown-theme--phycat-abyss .markdown-body h1 { font-size: 2em; border-bottom: 1px solid #30363d; padding-bottom: 0.3em; }
-.markdown-theme--phycat-abyss .markdown-body h2 { font-size: 1.5em; border-bottom: 1px solid #30363d; padding-bottom: 0.3em; }
-.markdown-theme--phycat-abyss .markdown-body h3 { font-size: 1.25em; }
-.markdown-theme--phycat-abyss .markdown-body h4 { font-size: 1em; }
-
-.markdown-theme--phycat-abyss .markdown-body p {
-  margin-top: 0;
-  margin-bottom: 1em;
-}
-
-.markdown-theme--phycat-abyss .markdown-body ul,
-.markdown-theme--phycat-abyss .markdown-body ol {
-  margin-top: 0;
-  margin-bottom: 1em;
-  padding-left: 2em;
-}
-
-.markdown-theme--phycat-abyss .markdown-body code {
-  background: #341a0a;
-  border-radius: 3px;
-  font-size: 0.85em;
-  padding: 0.2em 0.4em;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  color: #f97583;
-}
-
-.markdown-theme--phycat-abyss .markdown-body pre {
-  background: #161b22;
-  border-radius: 6px;
-  padding: 16px;
-  overflow: auto;
-  margin-top: 0;
-  margin-bottom: 1em;
-}
-
-.markdown-theme--phycat-abyss .markdown-body pre code {
-  background: transparent;
-  padding: 0;
-  color: #c9d1d9;
-}
-
-.markdown-theme--phycat-abyss .markdown-body blockquote {
-  margin: 0;
-  padding: 0 1em;
-  color: #8b949e;
-  border-left: 0.25em solid #30363d;
-  margin-bottom: 1em;
-}
-
-.markdown-theme--phycat-abyss .markdown-body table {
-  border-spacing: 0;
-  border-collapse: collapse;
-  margin-bottom: 1em;
-  width: 100%;
-}
-
-.markdown-theme--phycat-abyss .markdown-body table th,
-.markdown-theme--phycat-abyss .markdown-body table td {
-  border: 1px solid #30363d;
-  padding: 6px 13px;
-}
-
-.markdown-theme--phycat-abyss .markdown-body table tr {
-  background: #0d1117;
-  border-top: 1px solid #21262d;
-}
-
-.markdown-theme--phycat-abyss .markdown-body table tr:nth-child(2n) {
-  background: #161b22;
-}
-
-.markdown-theme--phycat-abyss .markdown-body a {
-  color: #58a6ff;
-  text-decoration: none;
-}
-
-.markdown-theme--phycat-abyss .markdown-body a:hover {
-  text-decoration: underline;
-}
-
-.markdown-theme--phycat-abyss .markdown-body img {
-  max-width: 100%;
-  box-sizing: content-box;
-}
-
-.markdown-theme--phycat-abyss .markdown-body hr {
-  height: 0.25em;
-  padding: 0;
-  margin: 24px 0;
-  background: #21262d;
-  border: 0;
 }
 </style>
