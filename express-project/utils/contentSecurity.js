@@ -98,13 +98,8 @@ const sanitizeContent = (content) => {
     cursor = aClose + closeTag.length
   }
 
-  // 2. 保护换行符
-  const lineBreaks = []
-  processedContent = processedContent.replace(/\n/g, () => {
-    const placeholder = `__LINE_BREAK_${lineBreaks.length}__`
-    lineBreaks.push('<br>')
-    return placeholder
-  })
+  // 2. 保护换行符 - 保留原始换行符，让 markdown-it 处理
+  // 注意：不再将 \n 转换为 <br>，因为 Markdown 渲染器需要原始换行符来正确解析
 
   // 3. 保护<br>标签
   const brTags = []
@@ -137,10 +132,6 @@ const sanitizeContent = (content) => {
   // 6. 恢复被保护的内容
   brTags.forEach((tag, index) => {
     processedContent = processedContent.replace(`__BR_TAG_${index}__`, tag)
-  })
-
-  lineBreaks.forEach((tag, index) => {
-    processedContent = processedContent.replace(`__LINE_BREAK_${index}__`, tag)
   })
 
   imgTags.forEach((tag, index) => {
