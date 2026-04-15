@@ -39,8 +39,8 @@
 
         <div class="input-section">
           <div class="content-input-wrapper">
-            <textarea v-model="form.content" class="content-textarea" placeholder="请输入内容（支持 Markdown）" maxlength="2000"></textarea>
-            <div class="char-count">{{ form.content.length }}/2000</div>
+            <textarea v-model="form.content" class="content-textarea" placeholder="请输入内容（支持 Markdown）" maxlength="50000"></textarea>
+            <div class="char-count">{{ form.content.length }}/50000</div>
           </div>
         </div>
 
