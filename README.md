@@ -139,6 +139,17 @@ AstrBot Community 基于原项目 [ZTMYO/XiaoShiLiu](https://github.com/ZTMYO/Xi
 - **视频嵌入**：`[::video](url)` 支持 mp4/webm/ogg 直链视频和 Bilibili 长链接解析
 - **双主题切换**：Phycat Mint（浅色）和 Phycat Abyss（深色）两套主题，保存在本地 localStorage
 
+#### 自定义块语法
+
+除标准 Markdown 语法外，系统还支持以下自定义块语法：
+
+| 语法 | 说明 | 示例 |
+|------|------|------|
+| `[::md](url)` | 远程 Markdown - 抓取并内联渲染远程 .md 文件 | `[::md](https://example.com/readme.md)` |
+| `[::video](url)` | 视频嵌入 - 支持直链视频和 Bilibili 长链接 | `[::video](https://example.com/video.mp4)` |
+
+> **注意**：自定义语法必须单独成行才能被识别。
+
 ### 纯文本社区优化
 
 - **移除媒体上传**：不再提供站内文件上传入口，所有媒体通过外链引用

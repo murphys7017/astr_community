@@ -15,6 +15,7 @@ import { getPostList } from '@/api/posts.js'
 import defaultAvatar from '@/assets/imgs/avatar.png'
 import defaultPlaceholder from '@/assets/imgs/未加载.png'
 import { stuckItemManager } from '@/directives/index.js'
+import MarkdownIt from 'markdown-it'
 
 const props = defineProps({
     refreshKey: {
@@ -92,6 +93,16 @@ const contentList = ref([])
 const itemLoadingStates = ref({})
 // 新加载内容的动画状态
 const newItemAnimStates = ref({})
+
+// 初始化 markdown-it 用于预览渲染
+const md = new MarkdownIt({
+    html: false,
+    linkify: true,
+    breaks: true
+})
+
+// 自定义块语法正则（用于预览时移除这些块）
+const BLOCK_REGEX = /^\[::(\w+)\]\((https?:\/\/[^\)]+)\)$/gm
 
 // 计算当前应该使用的列数
 const updateColumnCount = () => {
@@ -211,7 +222,21 @@ const getOrEstimateItemHeight = (item) => {
 }
 
 const getCardPreview = (content = '') => {
-    return String(content || '')
+    if (!content) return ''
+
+    // 移除自定义块语法行（[::md](url) 和 [::video](url)）
+    const lines = content.split('\n')
+    const filteredLines = lines.filter(line => {
+        BLOCK_REGEX.lastIndex = 0
+        return !BLOCK_REGEX.test(line)
+    })
+    const cleanedContent = filteredLines.join('\n')
+
+    // 渲染 markdown 为 HTML
+    const html = md.render(cleanedContent)
+
+    // 移除 HTML 标签并清理空白
+    return html
         .replace(/<[^>]*>/g, ' ')
         .replace(/&nbsp;/g, ' ')
         .replace(/\s+/g, ' ')
