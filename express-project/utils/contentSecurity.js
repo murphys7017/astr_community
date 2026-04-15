@@ -56,12 +56,11 @@ const validateAndCleanMentionLink = (linkHtml) => {
 const sanitizeContent = (content) => {
   if (!content) return ''
 
-  // 对于纯文本社区，不允许任何原始 HTML 标签
-  // markdown 内容会被前端 markdown-it 渲染，不需要也不应该在这里转义
-  // markdown-it 默认会转义 HTML 标签，防止 XSS
+  // 将 <br> 标签转换为换行符，让 markdown-it 能正确解析
+  let processed = content.replace(/<br\s*\/?>/gi, '\n')
 
   // 返回原始内容即可
-  return content.trim()
+  return processed.trim()
 }
 
 /**
