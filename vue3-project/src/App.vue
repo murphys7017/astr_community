@@ -1,6 +1,6 @@
 <script setup>
-import { RouterView } from 'vue-router'
-import { onMounted } from 'vue'
+import { RouterView, useRoute } from 'vue-router'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useAuthStore } from '@/stores/auth'
 import { useAboutStore } from '@/stores/about'
@@ -15,9 +15,12 @@ import ChangePasswordModal from '@/components/modals/ChangePasswordModal.vue'
 import KeyboardShortcutsModal from '@/components/modals/KeyboardShortcutsModal.vue'
 import AccountSecurityModal from '@/components/modals/AccountSecurityModal.vue'
 import VerifiedModal from '@/components/modals/VerifiedModal.vue'
+import DisclaimerModal from '@/components/modals/DisclaimerModal.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { useConfirm } from '@/views/admin/composables/useConfirm'
+const DISCLAIMER_STORAGE_KEY = 'astrbot-community-disclaimer-acknowledged'
 
+const route = useRoute()
 const userStore = useUserStore()
 const authStore = useAuthStore()
 const aboutStore = useAboutStore()
@@ -28,8 +31,9 @@ const verifiedStore = useVerifiedStore()
 const { confirmState, handleConfirm, handleCancel } = useConfirm()
 
 // 找回密码模态框状态
-import { ref } from 'vue'
 const showResetPasswordModal = ref(false)
+const showDisclaimerModal = ref(false)
+const isAdminRoute = computed(() => route.path.startsWith('/admin'))
 
 const openResetPassword = () => {
   authStore.closeAuthModal()
@@ -38,6 +42,20 @@ const openResetPassword = () => {
 
 const closeResetPassword = () => {
   showResetPasswordModal.value = false
+}
+
+const evaluateDisclaimerVisibility = () => {
+  if (isAdminRoute.value) {
+    showDisclaimerModal.value = false
+    return
+  }
+
+  showDisclaimerModal.value = localStorage.getItem(DISCLAIMER_STORAGE_KEY) !== '1'
+}
+
+const acknowledgeDisclaimer = () => {
+  localStorage.setItem(DISCLAIMER_STORAGE_KEY, '1')
+  showDisclaimerModal.value = false
 }
 
 const backToLoginFromReset = () => {
@@ -105,12 +123,16 @@ const restoreThemeColor = () => {
 onMounted(() => {
   userStore.initUserInfo()
   restoreThemeColor()
+  evaluateDisclaimerVisibility()
 })
+
+watch(() => route.path, evaluateDisclaimerVisibility)
 </script>
 
 <template>
   <div class="app-container">
     <RouterView />
+    <DisclaimerModal v-if="showDisclaimerModal" @acknowledge="acknowledgeDisclaimer" />
     <AuthModal v-if="authStore.showAuthModal" :initial-mode="authStore.initialMode" @close="authStore.closeAuthModal"
       @success="authStore.closeAuthModal" @open-reset-password="openResetPassword" />
     <ResetPasswordModal v-if="showResetPasswordModal" @close="closeResetPassword"
