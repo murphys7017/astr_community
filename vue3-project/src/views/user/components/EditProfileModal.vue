@@ -31,9 +31,9 @@
             </div>
           </div>
 
-          <!-- Markdown 主题设置 -->
+          <!-- Markdown 渲染样式设置 -->
           <div class="form-group">
-            <label class="form-label">Markdown 渲染主题:</label>
+            <label class="form-label">Markdown 渲染样式:</label>
             <div class="theme-selector">
               <label
                 v-for="theme in themeOptions"
@@ -51,6 +51,12 @@
               </label>
             </div>
             <p class="theme-hint">仅当前浏览器生效</p>
+            <div class="theme-preview">
+              <div class="theme-preview-title">样式预览</div>
+              <div class="theme-preview-shell">
+                <MarkdownRenderer :content="markdownPreviewContent" :theme="form.markdownTheme" />
+              </div>
+            </div>
           </div>
 
           <!-- 邮箱（仅在邮件功能启用时显示） -->
@@ -154,11 +160,13 @@
 <script setup>
 import { ref, reactive, watch, inject, computed, onMounted } from 'vue'
 import SvgIcon from '@/components/SvgIcon.vue'
+import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 import { authApi } from '@/api/index.js'
 import DropdownSelect from '@/components/DropdownSelect.vue'
 import MbtiPicker from '@/components/MbtiPicker.vue'
 import { useScrollLock } from '@/composables/useScrollLock'
 import { sanitizeContent } from '@/utils/contentSecurity'
+import { DEFAULT_MARKDOWN_THEME, loadMarkdownTheme, saveMarkdownTheme } from '@/utils/markdownTheme'
 import { useUserStore } from '@/stores/user.js'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
@@ -186,14 +194,24 @@ const userStore = useUserStore()
 
 const defaultAvatar = new URL('@/assets/imgs/avatar.png', import.meta.url).href
 
-// Markdown 主题相关
-const THEME_STORAGE_KEY = 'markdownTheme'
-const DEFAULT_THEME = 'phycat-mint'
+// Markdown 渲染样式相关
+const DEFAULT_THEME = DEFAULT_MARKDOWN_THEME
 
 const themeOptions = [
   { value: 'phycat-mint', label: 'Phycat Mint' },
   { value: 'phycat-abyss', label: 'Phycat Abyss' }
 ]
+
+const markdownPreviewContent = [
+  '# AstrBot Community',
+  '',
+  '这里有一段 **强调文本**、[外链](https://example.com) 和 `inline code`。',
+  '',
+  '> 这是一段引用预览',
+  '',
+  '- 轻量',
+  '- 文本优先'
+].join('\n')
 
 // 邮箱相关
 const emailEnabled = ref(false)
@@ -295,28 +313,6 @@ const confirmUnbindEmail = async () => {
     $message.error('解绑失败，请稍后重试')
   } finally {
     isUnbindingEmail.value = false
-  }
-}
-
-// 从 localStorage 加载 Markdown 主题
-const loadMarkdownTheme = () => {
-  try {
-    const saved = localStorage.getItem(THEME_STORAGE_KEY)
-    if (saved === 'phycat-mint' || saved === 'phycat-abyss') {
-      return saved
-    }
-  } catch (e) {
-    console.error('Failed to load theme:', e)
-  }
-  return DEFAULT_THEME
-}
-
-// 保存 Markdown 主题到 localStorage
-const saveMarkdownTheme = (theme) => {
-  try {
-    localStorage.setItem(THEME_STORAGE_KEY, theme)
-  } catch (e) {
-    console.error('Failed to save theme:', e)
   }
 }
 
@@ -466,11 +462,6 @@ watch(() => form.bio, (newValue) => {
   }
 })
 
-// 监听 Markdown 主题变化
-watch(() => form.markdownTheme, (newValue) => {
-  saveMarkdownTheme(newValue)
-})
-
 // 兴趣爱好相关方法
 const addInterest = () => {
   const interest = newInterest.value.trim()
@@ -506,6 +497,8 @@ const handleSave = async () => {
   saving.value = true
 
   try {
+    saveMarkdownTheme(form.markdownTheme)
+
     const formData = {
       nickname: form.nickname.trim(),
       bio: sanitizedBio,
@@ -697,7 +690,7 @@ const handleSave = async () => {
   color: var(--text-color-secondary);
 }
 
-/* Markdown 主题选择器 */
+/* Markdown 渲染样式选择器 */
 .theme-selector {
   display: flex;
   gap: 12px;
@@ -737,6 +730,31 @@ const handleSave = async () => {
   font-size: 12px;
   color: var(--text-color-secondary);
   margin-top: 4px;
+}
+
+.theme-preview {
+  margin-top: 12px;
+}
+
+.theme-preview-title {
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--text-color-secondary);
+}
+
+.theme-preview-shell {
+  padding: 12px;
+  border: 1px dashed var(--border-color-primary);
+  border-radius: 12px;
+  background: var(--bg-color-secondary);
+}
+
+.theme-preview-shell :deep(.markdown-body) {
+  padding: 14px 16px 16px;
+}
+
+.theme-preview-shell :deep(.markdown-segment) {
+  margin-bottom: 0.85rem;
 }
 
 .char-count {

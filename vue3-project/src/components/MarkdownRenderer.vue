@@ -1,7 +1,7 @@
 <template>
-  <div class="markdown-wrapper" :class="themeClass">
+  <div class="markdown-wrapper markdown-theme-shell" :class="themeClass">
     <div class="markdown-body">
-      <template v-for="(segment, index) in parsedSegments" :key="index">
+      <template v-for="segment in parsedSegments" :key="segment.key">
         <!-- 普通 Markdown 段 -->
         <div v-if="segment.type === 'markdown'" class="markdown-segment" v-html="segment.html"></div>
         <!-- 远程 Markdown 段 -->
@@ -20,10 +20,17 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import MarkdownIt from 'markdown-it'
 import RemoteMarkdown from './RemoteMarkdown.vue'
 import VideoEmbed from './VideoEmbed.vue'
+import {
+  MARKDOWN_THEME_CHANGE_EVENT,
+  MARKDOWN_THEME_STORAGE_KEY,
+  loadMarkdownTheme,
+  normalizeMarkdownTheme
+} from '@/utils/markdownTheme'
+import { splitMarkdownContent } from '@/utils/markdownContent'
 
 const props = defineProps({
   content: {
@@ -49,139 +56,93 @@ const md = new MarkdownIt({
   breaks: true
 })
 
-// Markdown 主题相关
-const MARKDOWN_THEME_STORAGE_KEY = 'markdownTheme'
-const DEFAULT_MARKDOWN_THEME = 'phycat-mint'
-const SUPPORTED_THEMES = ['phycat-mint', 'phycat-abyss']
+md.renderer.rules.fence = (tokens, idx, options) => {
+  const token = tokens[idx]
+  const info = token.info ? md.utils.unescapeAll(token.info).trim() : ''
+  const langName = info ? info.split(/\s+/g)[0] : ''
+  const className = langName ? ` class="${options.langPrefix}${md.utils.escapeHtml(langName)}"` : ''
+  const languageLabel = md.utils.escapeHtml((langName || 'text').toUpperCase())
+  const code = md.utils.escapeHtml(token.content)
 
-const currentTheme = ref(DEFAULT_MARKDOWN_THEME)
-let currentStyleLink = null
+  return `<pre data-language="${languageLabel}"><code${className}>${code}</code></pre>\n`
+}
+
+const resolveTheme = (theme = '') => {
+  return theme ? normalizeMarkdownTheme(theme) : loadMarkdownTheme()
+}
+
+const currentTheme = ref(resolveTheme(props.theme))
 
 const themeClass = computed(() => {
   return `markdown-theme--${currentTheme.value}`
 })
 
-// 加载 Markdown 主题 CSS
-const loadMarkdownThemeCSS = (theme) => {
-  if (!SUPPORTED_THEMES.includes(theme)) {
-    theme = DEFAULT_MARKDOWN_THEME
-  }
-
-  // 移除之前的样式链接
-  if (currentStyleLink) {
-    currentStyleLink.remove()
-    currentStyleLink = null
-  }
-
-  // 创建新的样式链接
-  currentStyleLink = document.createElement('link')
-  currentStyleLink.rel = 'stylesheet'
-  currentStyleLink.href = `/css/markdown-themes/${theme}.css`
-  document.head.appendChild(currentStyleLink)
+const handleThemeChange = (event) => {
+  if (props.theme) return
+  currentTheme.value = normalizeMarkdownTheme(event.detail?.theme || loadMarkdownTheme())
 }
 
-// 从 localStorage 加载 Markdown 主题
-const loadTheme = () => {
-  // 优先使用 props.theme（如果是有效的）
-  if (props.theme && SUPPORTED_THEMES.includes(props.theme)) {
-    currentTheme.value = props.theme
-  } else {
-    // 否则从 localStorage 读取
-    try {
-      const saved = localStorage.getItem(MARKDOWN_THEME_STORAGE_KEY)
-      if (saved && SUPPORTED_THEMES.includes(saved)) {
-        currentTheme.value = saved
-      }
-    } catch (e) {
-      console.error('Failed to load markdown theme:', e)
-    }
+const handleStorageChange = (event) => {
+  if (props.theme) return
+  if (!event.key || event.key === MARKDOWN_THEME_STORAGE_KEY) {
+    currentTheme.value = loadMarkdownTheme()
   }
-  loadMarkdownThemeCSS(currentTheme.value)
 }
 
-// 监听 props.theme 变化
 watch(() => props.theme, (newTheme) => {
-  if (newTheme && SUPPORTED_THEMES.includes(newTheme)) {
-    currentTheme.value = newTheme
-    loadMarkdownThemeCSS(newTheme)
-  }
-})
+  currentTheme.value = resolveTheme(newTheme)
+}, { immediate: true })
 
 // 当前渲染链的 URLs（包括父链）
 const currentUrls = computed(() => {
   return props.parentUrls || new Set()
 })
 
-// 自定义块语法正则
-const BLOCK_REGEX = /^\[::(\w+)\]\((https?:\/\/[^\)]+)\)$/gm
-
 // 解析内容为分段
 const parsedSegments = computed(() => {
-  if (!props.content) return []
-
-  const lines = props.content.split('\n')
-  const segments = []
-  let currentMarkdown = []
-
-  const flushMarkdown = () => {
-    if (currentMarkdown.length > 0) {
-      const text = currentMarkdown.join('\n').trim()
-      if (text) {
-        segments.push({
-          type: 'markdown',
-          html: md.render(text)
-        })
+  return splitMarkdownContent(props.content, currentUrls.value).map((segment, index) => {
+    if (segment.type === 'markdown') {
+      return {
+        ...segment,
+        html: md.render(segment.content),
+        key: `markdown:${index}`
       }
-      currentMarkdown = []
     }
-  }
 
-  for (const line of lines) {
-    // 重置正则的 lastIndex
-    BLOCK_REGEX.lastIndex = 0
-    const match = BLOCK_REGEX.exec(line)
-
-    if (match) {
-      flushMarkdown()
-      const [, type, url] = match
-      if (type === 'md') {
-        segments.push({ type: 'remote-md', url, parentUrls: currentUrls.value })
-      } else if (type === 'video') {
-        segments.push({ type: 'video', url })
-      } else {
-        // 未知类型，当作普通 Markdown
-        currentMarkdown.push(line)
+    if (segment.type === 'remote-md') {
+      return {
+        ...segment,
+        key: `remote-md:${segment.url}:${index}`
       }
-    } else {
-      currentMarkdown.push(line)
     }
-  }
 
-  flushMarkdown()
-  return segments
+    return {
+      ...segment,
+      key: `video:${segment.url}:${index}`
+    }
+  })
 })
 
-// 处理远程 Markdown 抓取成功（用于后续扩展）
-const handleRemoteFetchSuccess = (content) => {
-  // 目前不需要额外处理，RemoteMarkdown 组件自己会渲染
-}
+const handleRemoteFetchSuccess = () => {}
 
 onMounted(() => {
-  loadTheme()
+  window.addEventListener(MARKDOWN_THEME_CHANGE_EVENT, handleThemeChange)
+  window.addEventListener('storage', handleStorageChange)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener(MARKDOWN_THEME_CHANGE_EVENT, handleThemeChange)
+  window.removeEventListener('storage', handleStorageChange)
 })
 </script>
 
 <style scoped>
 .markdown-wrapper {
   width: 100%;
+  min-width: 0;
 }
 
 .markdown-body {
-  line-height: 1.6;
-  word-wrap: break-word;
-}
-
-.markdown-segment {
-  margin-bottom: 1em;
+  min-width: 0;
 }
 </style>

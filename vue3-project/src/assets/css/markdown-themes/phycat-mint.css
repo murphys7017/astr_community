@@ -1,187 +1,81 @@
-/* Phycat Mint Markdown 主题 - Typora 风格 */
-
-/* 基础样式 */
-.markdown-body {
-  color: #333;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-  font-size: 16px;
-  line-height: 1.6;
-  word-wrap: break-word;
+.markdown-theme--phycat-mint {
+  --md-panel-bg: transparent;
+  --md-panel-radius: 24px;
+  --md-pattern-fill: #3db8bf;
+  --md-pattern-opacity: 0.12;
+  --md-pattern-size: 20px 20px;
+  --md-bg-style: var(--md-pattern-cross);
+  --md-body-text: #333333;
+  --md-heading-color: #222222;
+  --md-heading-accent: #3db8bf;
+  --md-heading-accent-soft: #7aeaf0;
+  --md-heading-accent-wash: rgba(122, 234, 240, 0.22);
+  --md-heading-glow: none;
+  --md-heading-underline-shadow: 0 8px 22px rgba(61, 184, 211, 0.26);
+  --md-h1-underline: linear-gradient(90deg, #80f7c4, #3db8d3, #80f7c4);
+  --md-h2-text: #ffffff;
+  --md-h2-bg: linear-gradient(90deg, #80f7c4, #3db8d3, #80f7c4);
+  --md-h2-hover-bg: linear-gradient(90deg, #7ef3c2, #2eb1ca, #7ef3c2);
+  --md-h2-border: rgba(61, 184, 211, 0.16);
+  --md-h2-shadow: rgba(61, 184, 211, 0.16);
+  --md-h2-hover-text: #ffffff;
+  --md-h2-hover-shadow: rgba(61, 184, 211, 0.3);
+  --md-list-marker: #089ba3;
+  --md-list-line: rgba(61, 184, 191, 0.45);
+  --md-quote-icon: "✨";
+  --md-quote-icon-rotate: 0deg;
+  --md-quote-icon-shadow: none;
+  --md-quote-text: #555555;
+  --md-quote-bg: rgba(122, 234, 240, 0.09);
+  --md-quote-border: rgba(61, 184, 191, 0.14);
+  --md-quote-hover-bg: rgba(122, 234, 240, 0.15);
+  --md-quote-hover-border: rgba(61, 184, 191, 0.2);
+  --md-quote-hover-shadow: rgba(61, 184, 191, 0.16);
+  --md-link: #333333;
+  --md-link-hover: #089ba3;
+  --md-link-hover-bg: rgba(122, 234, 240, 0.12);
+  --md-link-hover-shadow: none;
+  --md-link-visited: #089ba3;
+  --md-strong: #3db8bf;
+  --md-strong-hover-shadow: 2px 2px 0 rgba(122, 234, 240, 0.16);
+  --md-em: #555555;
+  --md-em-hover: #3db8bf;
+  --md-em-underline: #7aeaf0;
+  --md-del: #999999;
+  --md-del-line: #3db8bf;
+  --md-del-hover: #7a7a7a;
+  --md-mark-text: inherit;
+  --md-mark-bg: rgba(122, 234, 240, 0.35);
+  --md-mark-hover-text: #ffffff;
+  --md-mark-hover-bg: #3db8bf;
+  --md-mark-hover-shadow: rgba(61, 184, 191, 0.2);
+  --md-hr-line: #7aeaf0;
+  --md-hr-center: #3db8bf;
+  --md-hr-center-fill: #ffffff;
+  --md-hr-center-shadow: rgba(61, 184, 191, 0.25);
+  --md-inline-code-text: #089ba3;
+  --md-inline-code-bg: rgba(122, 234, 240, 0.11);
+  --md-inline-code-hover-text: #ffffff;
+  --md-inline-code-hover-bg: #3db8bf;
+  --md-inline-code-hover-shadow: rgba(122, 234, 240, 0.32);
+  --md-code-bg: #f8fbfb;
+  --md-code-border: rgba(61, 184, 191, 0.16);
+  --md-code-header-bg: #ffffff;
+  --md-code-header-text: #7e7e7e;
+  --md-code-header-border: rgba(61, 184, 191, 0.12);
+  --md-code-text: #334155;
+  --md-code-shadow: rgba(15, 23, 42, 0.08);
+  --md-table-bg: #ffffff;
+  --md-table-border: rgba(61, 184, 191, 0.14);
+  --md-table-head-bg: linear-gradient(90deg, rgba(61, 184, 191, 0.16), rgba(122, 234, 240, 0.1));
+  --md-table-head-text: #0f766e;
+  --md-table-row-alt: rgba(122, 234, 240, 0.08);
+  --md-table-row-hover: rgba(122, 234, 240, 0.14);
+  --md-image-shadow: rgba(15, 23, 42, 0.08);
+  --md-image-hover-shadow: rgba(61, 184, 191, 0.22);
 }
 
-/* 标题 */
-.markdown-body h1,
-.markdown-body h2,
-.markdown-body h3,
-.markdown-body h4,
-.markdown-body h5,
-.markdown-body h6 {
-  margin-top: 1.5em;
-  margin-bottom: 0.5em;
-  font-weight: 600;
-  line-height: 1.25;
-  color: #333;
-}
-
-.markdown-body h1 {
-  font-size: 2em;
-  border-bottom: 1px solid #eaecef;
-  padding-bottom: 0.3em;
-}
-
-.markdown-body h2 {
-  font-size: 1.5em;
-  border-bottom: 1px solid #eaecef;
-  padding-bottom: 0.3em;
-}
-
-.markdown-body h3 {
-  font-size: 1.25em;
-}
-
-.markdown-body h4 {
-  font-size: 1em;
-}
-
-/* 段落 */
-.markdown-body p {
-  margin-top: 0;
-  margin-bottom: 1em;
-}
-
-/* 列表 */
-.markdown-body ul,
-.markdown-body ol {
-  margin-top: 0;
-  margin-bottom: 1em;
-  padding-left: 2em;
-}
-
-.markdown-body ul {
-  list-style-type: disc;
-}
-
-.markdown-body ul ul {
-  list-style-type: circle;
-}
-
-.markdown-body ul ul ul {
-  list-style-type: square;
-}
-
-.markdown-body ol {
-  list-style-type: decimal;
-}
-
-/* 代码 - 行内 */
-.markdown-body code {
-  background: #f6f8fa;
-  border-radius: 3px;
-  font-size: 0.85em;
-  padding: 0.2em 0.4em;
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-  color: #e83e8c;
-}
-
-/* 代码 - 块 */
-.markdown-body pre {
-  background: #f6f8fa;
-  border-radius: 6px;
-  padding: 16px;
-  overflow: auto;
-  margin-top: 0;
-  margin-bottom: 1em;
-  font-size: 0.9em;
-  line-height: 1.45;
-}
-
-.markdown-body pre code {
-  background: transparent;
-  padding: 0;
-  font-size: 1em;
-  color: #333;
-}
-
-/* 引用块 */
-.markdown-body blockquote {
-  margin: 0;
-  padding: 0 1em;
-  color: #6a737d;
-  border-left: 0.25em solid #dfe2e5;
-  margin-bottom: 1em;
-}
-
-.markdown-body blockquote > :first-child {
-  margin-top: 0;
-}
-
-.markdown-body blockquote > :last-child {
-  margin-bottom: 0;
-}
-
-/* 表格 */
-.markdown-body table {
-  border-spacing: 0;
-  border-collapse: collapse;
-  margin-bottom: 1em;
-  width: 100%;
-  display: block;
-  overflow: auto;
-}
-
-.markdown-body table th,
-.markdown-body table td {
-  border: 1px solid #dfe2e5;
-  padding: 6px 13px;
-}
-
-.markdown-body table th {
-  font-weight: 600;
-  background: #f6f8fa;
-}
-
-.markdown-body table tr {
-  background: #fff;
-  border-top: 1px solid #c6cbd1;
-}
-
-.markdown-body table tr:nth-child(2n) {
-  background: #f6f8fa;
-}
-
-/* 链接 */
-.markdown-body a {
-  color: #0366d6;
-  text-decoration: none;
-}
-
-.markdown-body a:hover {
-  text-decoration: underline;
-}
-
-/* 图片 */
-.markdown-body img {
-  max-width: 100%;
-  box-sizing: border-box;
-  display: block;
-  border-radius: 4px;
-}
-
-/* 分割线 */
-.markdown-body hr {
-  height: 0.25em;
-  padding: 0;
-  margin: 24px 0;
-  background: #e1e4e8;
-  border: 0;
-}
-
-/* 删除线 */
-.markdown-body del {
-  color: #6a737d;
-}
-
-/* 任务列表 */
-.markdown-body input[type="checkbox"] {
-  margin-right: 0.5em;
+.markdown-theme--phycat-mint .markdown-body {
+  border: 1px solid rgba(61, 184, 191, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }

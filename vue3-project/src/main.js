@@ -16,6 +16,7 @@ import 'virtual:svg-icons-register'
 // 全局css
 import '@/assets/css/index.css'
 import '@/assets/css/animations.css'
+import '@/assets/css/markdown-themes/index.css'
 // 导入懒加载插件
 import { lazyPlugin } from './directives'
 // 导入主题工具函数
