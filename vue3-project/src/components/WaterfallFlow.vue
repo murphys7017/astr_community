@@ -140,12 +140,228 @@ const getShortestColumnIndex = () => {
     return columnHeights.value.indexOf(minHeight)
 }
 
-const getTextCardCoverHeight = () => {
+const hexToRgb = (hex) => {
+    const normalized = hex.replace('#', '')
+    const safeHex = normalized.length === 3
+        ? normalized.split('').map(char => char + char).join('')
+        : normalized
+
+    const value = Number.parseInt(safeHex, 16)
+
+    return {
+        r: (value >> 16) & 255,
+        g: (value >> 8) & 255,
+        b: value & 255
+    }
+}
+
+const hexToRgba = (hex, alpha = 1) => {
+    const { r, g, b } = hexToRgb(hex)
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
+const mixHexColors = (baseHex, targetHex, targetWeight = 0.5) => {
+    const base = hexToRgb(baseHex)
+    const target = hexToRgb(targetHex)
+    const safeWeight = Math.max(0, Math.min(1, targetWeight))
+    const baseWeight = 1 - safeWeight
+    const mixed = {
+        r: Math.round(base.r * baseWeight + target.r * safeWeight),
+        g: Math.round(base.g * baseWeight + target.g * safeWeight),
+        b: Math.round(base.b * baseWeight + target.b * safeWeight)
+    }
+
+    return `rgb(${mixed.r}, ${mixed.g}, ${mixed.b})`
+}
+
+const createTextCardTheme = ({
+    ink,
+    wash,
+    accent,
+    line = accent,
+    glow = accent,
+    patternKind = 'lines',
+    accentPoint = '88% 16%',
+    secondaryPoint = '18% 84%',
+    tertiaryPoint = '50% 52%'
+}) => {
+    const patternMap = {
+        lines: `repeating-linear-gradient(0deg, ${hexToRgba(line, 0.048)}, ${hexToRgba(line, 0.048)} 1px, transparent 1px, transparent 22px)`,
+        diagonal: `repeating-linear-gradient(135deg, ${hexToRgba(line, 0.044)}, ${hexToRgba(line, 0.044)} 1px, transparent 1px, transparent 26px)`,
+        grid: [
+            `repeating-linear-gradient(0deg, ${hexToRgba(line, 0.038)}, ${hexToRgba(line, 0.038)} 1px, transparent 1px, transparent 26px)`,
+            `repeating-linear-gradient(90deg, ${hexToRgba(line, 0.026)}, ${hexToRgba(line, 0.026)} 1px, transparent 1px, transparent 26px)`
+        ].join(', ')
+    }
+
+    return {
+        border: hexToRgba(line, 0.24),
+        topWash: hexToRgba(wash, 0.10),
+        accent: hexToRgba(accent, 0.16),
+        accentPoint,
+        secondaryPoint,
+        tertiaryPoint,
+        secondaryWash: hexToRgba(wash, 0.13),
+        tertiaryWash: hexToRgba(glow, 0.08),
+        surface: 'linear-gradient(160deg, rgba(255, 255, 255, 0.995), rgba(255, 255, 255, 0.985))',
+        pattern: patternMap[patternKind] || patternMap.lines,
+        glow: hexToRgba(glow, 0.12),
+        hoverShadow: `0 24px 42px -30px ${hexToRgba(glow, 0.24)}, 0 14px 24px -22px ${hexToRgba(glow, 0.14)}`,
+        titleColor: mixHexColors(ink, '#1f2428', 0.42),
+        previewColor: mixHexColors(ink, '#54616a', 0.52)
+    }
+}
+
+const textCardThemes = [
+    createTextCardTheme({
+        ink: '#052630',
+        wash: '#F2EFE5',
+        accent: '#A1A690',
+        line: '#A1A690',
+        glow: '#052630',
+        patternKind: 'lines',
+        accentPoint: '86% 12%',
+        secondaryPoint: '12% 88%',
+        tertiaryPoint: '55% 48%'
+    }),
+    createTextCardTheme({
+        ink: '#A64831',
+        wash: '#E5E7DB',
+        accent: '#6D6E5E',
+        line: '#6D6E5E',
+        glow: '#A64831',
+        patternKind: 'diagonal',
+        accentPoint: '84% 14%',
+        secondaryPoint: '18% 82%',
+        tertiaryPoint: '58% 22%'
+    }),
+    createTextCardTheme({
+        ink: '#708F65',
+        wash: '#E3A195',
+        accent: '#6287B3',
+        line: '#6287B3',
+        glow: '#E3A195',
+        patternKind: 'grid',
+        accentPoint: '82% 16%',
+        secondaryPoint: '16% 82%',
+        tertiaryPoint: '64% 28%'
+    }),
+    createTextCardTheme({
+        ink: '#556303',
+        wash: '#F5AC92',
+        accent: '#99B8E4',
+        line: '#99B8E4',
+        glow: '#F5AC92',
+        patternKind: 'diagonal',
+        accentPoint: '84% 18%',
+        secondaryPoint: '14% 84%',
+        tertiaryPoint: '48% 62%'
+    }),
+    createTextCardTheme({
+        ink: '#1B1414',
+        wash: '#ECD3B5',
+        accent: '#2B4776',
+        line: '#2B4776',
+        glow: '#ECD3B5',
+        patternKind: 'lines',
+        accentPoint: '86% 15%',
+        secondaryPoint: '20% 80%',
+        tertiaryPoint: '62% 20%'
+    }),
+    createTextCardTheme({
+        ink: '#4E5A5A',
+        wash: '#DDCEB9',
+        accent: '#8D9637',
+        line: '#8D9637',
+        glow: '#DDCEB9',
+        patternKind: 'grid',
+        accentPoint: '88% 14%',
+        secondaryPoint: '16% 86%',
+        tertiaryPoint: '52% 34%'
+    }),
+    createTextCardTheme({
+        ink: '#80AC34',
+        wash: '#EFADC1',
+        accent: '#8CB6E8',
+        line: '#8CB6E8',
+        glow: '#EFADC1',
+        patternKind: 'diagonal',
+        accentPoint: '82% 12%',
+        secondaryPoint: '14% 88%',
+        tertiaryPoint: '62% 68%'
+    })
+]
+
+const textCardHeightScales = [0.98, 1.06, 1.15, 1.24]
+const textCardHeightOffsets = [0, 12, 24, 38]
+
+const hashTextCardSeed = (value = '') => {
+    let hash = 2166136261
+
+    for (let index = 0; index < value.length; index++) {
+        hash ^= value.charCodeAt(index)
+        hash = Math.imul(hash, 16777619)
+    }
+
+    return hash >>> 0
+}
+
+const getTextCardSeedSource = (item) => (
+    `${item?.id ?? ''}|${item?.title ?? ''}|${item?.author_account ?? ''}|${String(item?.content ?? '').length}`
+)
+
+const getTextCardBaseHeight = () => {
     const horizontalPadding = window.innerWidth <= 600 ? 24 : 32
     const availableWidth = window.innerWidth - horizontalPadding - (Math.max(columnCount.value - 1, 0) * columnGap.value)
     const estimatedColumnWidth = Math.max(140, availableWidth / Math.max(columnCount.value, 1))
 
-    return Math.round(Math.max(228, Math.min(320, estimatedColumnWidth * 1.18)))
+    return Math.round(Math.max(228, Math.min(window.innerWidth <= 600 ? 272 : 304, estimatedColumnWidth * 1.02)))
+}
+
+const getTextCardVariant = (item) => {
+    const seed = hashTextCardSeed(getTextCardSeedSource(item))
+    const theme = textCardThemes[seed % textCardThemes.length]
+    const scale = textCardHeightScales[(seed >>> 3) % textCardHeightScales.length]
+    const offset = textCardHeightOffsets[(seed >>> 5) % textCardHeightOffsets.length]
+    const maxHeight = window.innerWidth <= 600 ? 320 : 360
+    const coverHeight = Math.round(Math.max(236, Math.min(maxHeight, getTextCardBaseHeight() * scale + offset)))
+    const previewLines = coverHeight >= 324 ? 7 : coverHeight >= 292 ? 6 : coverHeight >= 260 ? 5 : 4
+    const titleSize = coverHeight >= 316 ? '20px' : coverHeight >= 272 ? '19px' : '18px'
+
+    return {
+        theme,
+        coverHeight,
+        previewLines,
+        titleSize
+    }
+}
+
+const getTextCardCoverHeight = (item) => {
+    return getTextCardVariant(item).coverHeight
+}
+
+const getTextCardStyle = (item) => {
+    const variant = getTextCardVariant(item)
+
+    return {
+        '--text-card-height': `${variant.coverHeight}px`,
+        '--text-card-title-size': variant.titleSize,
+        '--text-card-preview-lines': String(variant.previewLines),
+        '--text-card-border': variant.theme.border,
+        '--text-card-top-wash': variant.theme.topWash,
+        '--text-card-accent': variant.theme.accent,
+        '--text-card-surface': variant.theme.surface,
+        '--text-card-pattern': variant.theme.pattern,
+        '--text-card-glow': variant.theme.glow,
+        '--text-card-hover-shadow': variant.theme.hoverShadow,
+        '--text-card-accent-point': variant.theme.accentPoint,
+        '--text-card-secondary-point': variant.theme.secondaryPoint,
+        '--text-card-tertiary-point': variant.theme.tertiaryPoint,
+        '--text-card-secondary-wash': variant.theme.secondaryWash,
+        '--text-card-tertiary-wash': variant.theme.tertiaryWash,
+        '--text-card-title-color': variant.theme.titleColor,
+        '--text-card-preview-color': variant.theme.previewColor
+    }
 }
 
 // 估算item高度（用于初始布局）
@@ -154,7 +370,7 @@ const estimateItemHeight = (item) => {
     const bottomHeight = 50 // 底部信息区域高度
 
     if (!hasImage) {
-        return getTextCardCoverHeight() + bottomHeight
+        return getTextCardCoverHeight(item) + bottomHeight
     }
 
     // 根据标题长度调整高度
@@ -979,7 +1195,8 @@ function handleImageError(event) {
                                 <SvgIcon name="play" width="12" height="12" />
                             </div>
                         </div>
-                        <div v-else class="content-img content-img--text" @click="onCardClick(item, $event)">
+                        <div v-else class="content-img content-img--text" :style="getTextCardStyle(item)"
+                            @click="onCardClick(item, $event)">
                             <div class="text-card-main">
                                 <div class="text-card-title">{{ item.title || '未命名帖子' }}</div>
                                 <p class="text-card-preview">{{ getCardPreview(item.content) || '这是一条纯文本内容' }}</p>
@@ -1073,7 +1290,7 @@ function handleImageError(event) {
     background-color: var(--bg-color-primary);
     position: relative;
     box-sizing: border-box;
-    transition: transform 0.2s ease, border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+    transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.18s ease;
     /* 修复大屏多列可能的显示问题 */
     visibility: visible;
     opacity: 1;
@@ -1104,7 +1321,8 @@ function handleImageError(event) {
 }
 
 .waterfall-item:not(.new-item):hover {
-    transform: translateY(-4px) translateZ(0);
+    transform: translate3d(0, -6px, 0);
+    box-shadow: 0 26px 36px -30px rgba(17, 24, 28, 0.42), 0 14px 22px -24px rgba(17, 24, 28, 0.22);
     z-index: 3;
 }
 
@@ -1150,15 +1368,18 @@ function handleImageError(event) {
     position: relative;
     width: 100%;
     min-width: 0;
-    min-height: 228px;
-    aspect-ratio: 4 / 5;
+    min-height: var(--text-card-height, 248px);
+    height: var(--text-card-height, 248px);
+    aspect-ratio: auto;
     padding: 18px 18px 20px;
     border-radius: 18px;
-    border: 1px solid rgba(18, 142, 124, 0.12);
+    border: 1px solid var(--text-card-border, rgba(18, 142, 124, 0.12));
     background:
-        linear-gradient(180deg, rgba(24, 185, 157, 0.08), rgba(255, 255, 255, 0) 46%),
-        radial-gradient(circle at 88% 16%, rgba(24, 185, 157, 0.10), transparent 34%),
-        linear-gradient(160deg, rgba(255, 255, 255, 0.96), rgba(247, 251, 249, 0.98));
+        radial-gradient(circle at var(--text-card-accent-point, 88% 16%), var(--text-card-accent, rgba(24, 185, 157, 0.10)), transparent 26%),
+        radial-gradient(circle at var(--text-card-secondary-point, 18% 84%), var(--text-card-secondary-wash, rgba(24, 185, 157, 0.10)), transparent 28%),
+        radial-gradient(circle at var(--text-card-tertiary-point, 50% 52%), var(--text-card-tertiary-wash, rgba(24, 185, 157, 0.06)), transparent 34%),
+        linear-gradient(180deg, var(--text-card-top-wash, rgba(24, 185, 157, 0.08)), rgba(255, 255, 255, 0) 42%),
+        var(--text-card-surface, linear-gradient(160deg, rgba(255, 255, 255, 0.96), rgba(247, 251, 249, 0.98)));
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
@@ -1166,7 +1387,8 @@ function handleImageError(event) {
     overflow: hidden;
     isolation: isolate;
     box-sizing: border-box;
-    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.18s ease, border-color 0.18s ease;
+    box-shadow: 0 14px 24px -28px rgba(17, 24, 28, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
 .content-img--text::before {
@@ -1174,9 +1396,9 @@ function handleImageError(event) {
     position: absolute;
     inset: 0;
     background:
-        linear-gradient(135deg, rgba(24, 185, 157, 0.045) 0%, transparent 30%),
-        repeating-linear-gradient(0deg, rgba(24, 185, 157, 0.04), rgba(24, 185, 157, 0.04) 1px, transparent 1px, transparent 24px);
-    opacity: 0.92;
+        linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, transparent 34%),
+        var(--text-card-pattern, repeating-linear-gradient(0deg, rgba(24, 185, 157, 0.04), rgba(24, 185, 157, 0.04) 1px, transparent 1px, transparent 24px));
+    opacity: 0.28;
     pointer-events: none;
     z-index: -2;
 }
@@ -1185,17 +1407,18 @@ function handleImageError(event) {
     content: '';
     position: absolute;
     inset: auto -10% -38% 12%;
-    height: 92px;
-    background: radial-gradient(circle, rgba(24, 185, 157, 0.14), transparent 72%);
-    filter: blur(22px);
+    height: 72px;
+    background: radial-gradient(circle, var(--text-card-glow, rgba(24, 185, 157, 0.14)), transparent 72%);
+    filter: blur(18px);
+    opacity: 0.32;
     pointer-events: none;
     z-index: -1;
 }
 
-.content-img--text:hover {
-    border-color: var(--primary-color);
-    box-shadow: 0 12px 28px rgba(18, 142, 124, 0.16);
-    transform: none;
+.waterfall-item:not(.new-item):hover .content-img--text {
+    border-color: var(--text-card-border, var(--primary-color));
+    box-shadow: var(--text-card-hover-shadow, 0 22px 34px -28px rgba(17, 24, 28, 0.36)), inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    transform: translate3d(0, -1px, 0);
 }
 
 .text-card-main {
@@ -1210,8 +1433,8 @@ function handleImageError(event) {
 
 .text-card-title {
     margin: 0;
-    color: var(--text-color-primary);
-    font-size: 18px;
+    color: var(--text-card-title-color, var(--text-color-primary));
+    font-size: var(--text-card-title-size, 18px);
     font-weight: 700;
     line-height: 1.45;
     display: -webkit-box;
@@ -1224,12 +1447,12 @@ function handleImageError(event) {
 
 .text-card-preview {
     margin: 0;
-    color: var(--text-color-secondary);
+    color: var(--text-card-preview-color, var(--text-color-secondary));
     font-size: 13px;
     line-height: 1.72;
     display: -webkit-box;
-    -webkit-line-clamp: 6;
-    line-clamp: 6;
+    -webkit-line-clamp: var(--text-card-preview-lines, 6);
+    line-clamp: var(--text-card-preview-lines, 6);
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-overflow: ellipsis;
