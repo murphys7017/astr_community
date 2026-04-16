@@ -2,15 +2,21 @@
 
 本文档详细介绍了 AstrBot Community 项目的目录结构和文件组织。
 
+当前仓库基于上游项目 `ZTMYO/XiaoShiLiu` 二次改造而来，原项目作者为 `ZTMYO`；当前仓库继续保留前后端分离结构，并在此基础上调整为面向 AstrBot 社区的轻量文本平台。
+
 ## 总体结构
 
 ```
 AstrBot Community/
 ├── vue3-project/           # 前端项目
 ├── express-project/        # 后端项目
-├── README.md              # 项目主文档
-├── DEPLOYMENT.md          # 部署指南
-└── PROJECT_STRUCTURE.md   # 项目结构说明（本文档）
+├── docker-compose.yml      # Docker 编排配置
+├── .env.docker             # Docker 环境变量模板
+├── deploy.ps1              # Windows 部署脚本
+├── README.md               # 项目主文档
+└── doc/
+    ├── DEPLOYMENT.md       # 部署指南
+    └── PROJECT_STRUCTURE.md # 项目结构说明（本文档）
 ```
 
 ## 前端项目结构（vue3-project/）

@@ -45,15 +45,40 @@ services:
       JWT_SECRET: ${JWT_SECRET:-xiaoshiliu_secret_key_2025}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       REFRESH_TOKEN_EXPIRES_IN: ${REFRESH_TOKEN_EXPIRES_IN:-30d}
-      API_BASE_URL: http://localhost:3001
+      API_BASE_URL: ${API_BASE_URL:-http://localhost:3001}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8080,http://localhost:3001}
+      LOG_APP_NAME: ${LOG_APP_NAME:-astrbot-community-api}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+      LOG_IGNORE_PATHS: ${LOG_IGNORE_PATHS:-/api/health}
       IMAGE_MAX_SIZE: ${IMAGE_MAX_SIZE:-10mb}
       VIDEO_MAX_SIZE: ${VIDEO_MAX_SIZE:-100mb}
       IMAGE_UPLOAD_STRATEGY: ${IMAGE_UPLOAD_STRATEGY:-imagehost}
       VIDEO_UPLOAD_STRATEGY: ${VIDEO_UPLOAD_STRATEGY:-local}
-      LOCAL_UPLOAD_DIR: ${LOCAL_UPLOAD_DIR:-uploads}
+      IMAGE_LOCAL_UPLOAD_DIR: ${IMAGE_LOCAL_UPLOAD_DIR:-uploads/images}
+      VIDEO_LOCAL_UPLOAD_DIR: ${VIDEO_LOCAL_UPLOAD_DIR:-uploads/videos}
       LOCAL_BASE_URL: ${LOCAL_BASE_URL:-http://localhost:3001}
       IMAGEHOST_API_URL: ${IMAGEHOST_API_URL:-https://api.xinyew.cn/api/360tc}
       IMAGEHOST_TIMEOUT: ${IMAGEHOST_TIMEOUT:-60000}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+      R2_ENDPOINT: ${R2_ENDPOINT:-}
+      R2_BUCKET_NAME: ${R2_BUCKET_NAME:-}
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
+      R2_REGION: ${R2_REGION:-auto}
+      R2_PUBLIC_URL: ${R2_PUBLIC_URL:-}
+      EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
+      SMTP_HOST: ${SMTP_HOST:-smtp.qq.com}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_SECURE: ${SMTP_SECURE:-true}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-AstrBot Community}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      GITHUB_REDIRECT_URI: ${GITHUB_REDIRECT_URI:-http://localhost:3001/api/auth/github/callback}
+      GITHUB_SCOPE: ${GITHUB_SCOPE:-read:user user:email}
       IP_LOCATION_PRIMARY_API: ${IP_LOCATION_PRIMARY_API:-https://api.pearktrue.cn/api/ip/details}
       IP_LOCATION_PRIMARY_TIMEOUT: ${IP_LOCATION_PRIMARY_TIMEOUT:-10000}
       IP_LOCATION_BACKUP_API: ${IP_LOCATION_BACKUP_API:-https://api.pearktrue.cn/api/ip/high}
@@ -82,7 +107,9 @@ services:
       context: ./vue3-project
       dockerfile: Dockerfile
       args:
-        VITE_API_BASE_URL: http://localhost:3001/api
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+        VITE_USE_REAL_API: ${VITE_USE_REAL_API:-false}
+        VITE_APP_TITLE: ${VITE_APP_TITLE:-AstrBot Community}
     container_name: xiaoshiliu-frontend
     restart: unless-stopped
     environment:

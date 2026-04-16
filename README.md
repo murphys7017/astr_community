@@ -43,17 +43,32 @@
 
 ## 项目来源
 
-AstrBot Community 基于原项目 [ZTMYO/XiaoShiLiu](https://github.com/ZTMYO/XiaoShiLiu) 二次改造而来。
+AstrBot Community 基于原项目 [ZTMYO/XiaoShiLiu](https://github.com/ZTMYO/XiaoShiLiu) 二次改造而来，原项目作者为 `ZTMYO`。
 
 当前仓库在保留原项目前后端基础能力的前提下，结合 AstrBot 社区场景进行了品牌、文案、分类结构、登录流程与纯文本社区化方向的调整。
+
+- 原项目名称：`XiaoShiLiu`
+- 原项目作者：`ZTMYO`
+- 当前仓库维护与二次改造：`murphys7017/astr_community`
+- 许可方式：继续遵循 `GPLv3`，请在分发或商用时保留原作者和许可证信息
 
 ## 当前定位
 
 - 面向 AstrBot 用户的轻量文本交流平台
-- 帖子正文以 Markdown 源文存储，并在前端渲染
-- 图片、视频、文档均优先通过外链接入
-- 头像默认跟随 GitHub 等外部账号来源，不再提供站内头像上传
-- Markdown 渲染样式当前提供 `phycat-mint` 与 `phycat-abyss` 两套内置主题
+- 帖子正文以 Markdown 源文存储并在前端渲染，评论、回复、个人简介继续使用纯文本
+- 发布页支持封面外链和 `.md` / `.markdown` 文件导入
+- 图片、视频、远程文档均优先通过外链接入
+- 头像默认跟随 GitHub 登录资料来源，不再提供站内头像上传
+- Markdown 渲染样式当前提供 `phycat-mint` 与 `phycat-abyss` 两套内置样式，仅保存在当前浏览器
+
+## 配置提示
+
+- 后端本地开发请参考 `express-project/.env.example`
+- 前端本地开发请参考 `vue3-project/.env.example`
+- Docker / Compose 环境请参考根目录 `/.env.docker`
+- `VITE_USE_REAL_API=true` 适合前端直连后端开发，`VITE_USE_REAL_API=false` 适合同域 `/api` 代理
+- 如果启用 GitHub 登录，请同步修改 `GITHUB_REDIRECT_URI`
+- 日志系统支持通过 `LOG_APP_NAME`、`LOG_LEVEL`、`LOG_FORMAT`、`LOG_IGNORE_PATHS` 调整输出行为
 
 > 📁 **项目结构说明**：本项目包含完整的前后端代码，前端位于 `vue3-project/` 目录，后端位于 `express-project/` 目录。详细结构请查看 [项目结构文档](./doc/PROJECT_STRUCTURE.md)。
 
@@ -130,23 +145,24 @@ AstrBot Community 基于原项目 [ZTMYO/XiaoShiLiu](https://github.com/ZTMYO/Xi
 
 ## 项目亮点
 
-- **工程化：** 环境配置、代码规范、构建与产物优化的完整流程
-- **业务能力：** 鉴权流程、路由守卫、状态管理与接口封装
-- **体验优化：** 骨架屏、懒加载、预加载、无障碍与响应式适配
-- **组件与分层：** 可复用组件拆分、按领域分组与别名引入
-- **后台管理：** 基础CRUD、数据管理与配置面板，支持后续扩展权限与统计
-- **快速部署：** 基于 Docker 的一键部署方案，支持多环境配置与自动化部署
-- **Markdown 渲染：** 支持完整 Markdown 语法、远程 Markdown 内联、视频嵌入与双主题切换
+- **文本社区化：** 帖子正文全面转向 Markdown 源文，评论与简介保持轻量纯文本链路
+- **外链媒体优先：** 封面、图片、视频和远程 Markdown 均以外链为主，降低站内媒体托管负担
+- **发布体验升级：** 支持封面链接、Markdown 文件导入、自定义视频块与远程 Markdown 内联
+- **渲染样式切换：** 内置 `phycat-mint` 与 `phycat-abyss` 两套 Markdown 渲染样式，浏览器本地持久化
+- **后台与工程化：** 保留前后端分离、管理后台、状态管理、接口封装与 Docker 部署链路
+- **日志系统：** 后端支持结构化日志与请求过滤，方便部署后排查问题
 
 ## 功能特性
 
 ### Markdown 渲染系统
 
 - **完整 Markdown 支持**：标题、列表、代码块、引用、表格等标准语法
+- **Markdown 文件导入**：发布页支持导入 `.md` / `.markdown` 文件并直接追加到正文
+- **封面外链**：帖子封面单独记录外链地址，卡片展示不依赖站内图片上传
 - **外链图片**：`![图片描述](url)` 支持外部图片链接渲染
 - **远程 Markdown**：`[::md](url)` 支持远程 Markdown 文件抓取并内联渲染（默认展开）
 - **视频嵌入**：`[::video](url)` 支持 mp4/webm/ogg 直链视频和 Bilibili 长链接解析
-- **双主题切换**：Phycat Mint（浅色）和 Phycat Abyss（深色）两套主题，保存在本地 localStorage
+- **渲染样式切换**：Phycat Mint 和 Phycat Abyss 两套内置渲染样式，保存在本地 `localStorage`
 
 #### 自定义块语法
 
@@ -161,7 +177,8 @@ AstrBot Community 基于原项目 [ZTMYO/XiaoShiLiu](https://github.com/ZTMYO/Xi
 
 ### 纯文本社区优化
 
-- **移除媒体上传**：不再提供站内文件上传入口，所有媒体通过外链引用
+- **帖子主流程不再依赖站内上传**：媒体以外链为主，后端会拒绝上传型媒体载荷写入帖子
+- **评论、回复、简介继续纯文本**：避免把全站通用文本链路一并切成 Markdown
 - **媒体标签拦截**：后端自动拦截 `<img>`、`<video>`、`<audio>`、`<iframe>` 等 HTML 标签
 - **移除 @提及功能**：全站移除 mention UI、解析和通知生成逻辑
 
@@ -177,9 +194,7 @@ AstrBot Community 基于原项目 [ZTMYO/XiaoShiLiu](https://github.com/ZTMYO/Xi
 - **Vite** - 构建工具和开发服务器
 - **Axios** - HTTP客户端
 - **VueUse** - Vue组合式工具库
-- **CropperJS** - 图片裁剪
 - **Vue3 Emoji Picker** - 表情选择器
-- **svg-captcha** - 验证码生成器
 - **markdown-it** - Markdown 解析器
 </details>
 
@@ -190,7 +205,9 @@ AstrBot Community 基于原项目 [ZTMYO/XiaoShiLiu](https://github.com/ZTMYO/Xi
 - **Express.js** - Web框架
 - **MySQL** - 数据库
 - **JWT** - 身份认证
-- **Multer** - 文件上传
+- **svg-captcha** - 验证码生成器
+- **Nodemailer** - 邮件服务
+- **自定义 Logger** - Pretty / JSON 双格式日志输出
 - **bcrypt** - 密码加密
 - **CORS** - 跨域资源共享
 
@@ -208,14 +225,14 @@ AstrBot Community 基于原项目 [ZTMYO/XiaoShiLiu](https://github.com/ZTMYO/Xi
 
 | 组件 | 版本要求 |
 |------|----------|
-| Node.js | >= 16.0.0 |
+| Node.js | >= 18.0.0 |
 | MySQL | >= 5.7 |
 | MariaDB | >= 10.3 |
 | npm | >= 8.0.0 |
 | yarn | >= 1.22.0 |
 | 浏览器 | 支持ES6+ |
 
-> 提示：上述为传统本地开发的最低版本要求。若使用 Docker 部署，默认镜像版本如下：MySQL 5.7、Node 18-alpine（前后端构建/运行）、Nginx alpine；Docker >= 20、Docker Compose >= 2。详见[部署指南文档](./doc/DEPLOYMENT.md)。
+> 提示：上述为传统本地开发的最低版本要求。若使用 Docker 部署，默认镜像版本如下：MySQL 8.0、Node 18-alpine（前后端构建/运行）、Nginx alpine；Docker >= 20、Docker Compose >= 2。详见[部署指南文档](./doc/DEPLOYMENT.md)。
 
 ## 环境配置
 
@@ -227,6 +244,12 @@ AstrBot Community 基于原项目 [ZTMYO/XiaoShiLiu](https://github.com/ZTMYO/Xi
 # 服务器配置
 PORT=3001
 NODE_ENV=development
+
+# 日志配置
+LOG_APP_NAME=astrbot-community-api
+LOG_LEVEL=debug
+LOG_FORMAT=pretty
+LOG_IGNORE_PATHS=/api/health
 
 # 数据库配置
 DB_HOST=localhost
@@ -251,12 +274,9 @@ IMAGE_UPLOAD_STRATEGY=imagehost
 VIDEO_UPLOAD_STRATEGY=local
 
 # 本地存储配置
-LOCAL_UPLOAD_DIR=uploads
+IMAGE_LOCAL_UPLOAD_DIR=uploads/images
+VIDEO_LOCAL_UPLOAD_DIR=uploads/videos
 LOCAL_BASE_URL=http://localhost:3001
-# 视频存储目录
-VIDEO_UPLOAD_DIR=uploads/videos
-# 视频封面存储目录
-VIDEO_COVER_DIR=uploads/covers
 
 # 第三方图床配置（当IMAGE_UPLOAD_STRATEGY=imagehost时使用）
 IMAGEHOST_API_URL=https://api.xinyew.cn/api/360tc
@@ -273,7 +293,8 @@ R2_REGION=auto
 # R2_PUBLIC_URL=https://your-custom-domain.com
 
 # CORS配置
-CORS_ORIGIN=http://localhost:5173
+# 多个来源使用英文逗号分隔
+CORS_ORIGIN=http://localhost:5173,http://localhost:3001
 
 # 邮件服务配置
 # 是否启用邮件功能 (true/false)，默认不启用
@@ -302,54 +323,74 @@ IP_LOCATION_PRIMARY_TIMEOUT=10000
 IP_LOCATION_BACKUP_API=https://api.pearktrue.cn/api/ip/high
 # 备用API超时时间（毫秒）
 IP_LOCATION_BACKUP_TIMEOUT=5000
+
+# GitHub OAuth 配置
+GITHUB_CLIENT_ID=your_github_client_id_here
+GITHUB_CLIENT_SECRET=your_github_client_secret_here
+GITHUB_REDIRECT_URI=http://localhost:3001/api/auth/github/callback
+GITHUB_SCOPE=read:user user:email
 ```
 
 ### 前端配置 (vue3-project/.env)
 
 ```env
 # API基础URL
+# 当 VITE_USE_REAL_API=true 时生效
 VITE_API_BASE_URL=http://localhost:3001/api
 
 # 是否使用真实API
+# true: 直连上面的后端地址
+# false: 强制走同域 /api 代理
 VITE_USE_REAL_API=true
 
 # 应用标题
 VITE_APP_TITLE=AstrBot Community
 ```
 
+### 前端生产构建示例 (vue3-project/.env.production)
+
+```env
+# 当前端通过同域 /api 代理访问后端时推荐使用
+VITE_USE_REAL_API=false
+VITE_APP_TITLE=AstrBot Community
+```
+
 > 💡 **配置说明**：
-> - 当前版本默认关闭站内图片、视频和头像上传，媒体建议统一使用外链
+> - 当前版本帖子主流程默认不开放站内图片、视频和头像上传，媒体建议统一使用外链
 > - 上传相关环境变量仍保留在后端，主要用于兼容历史实现或二次开发
+> - Markdown 渲染样式选择保存在浏览器 `localStorage`，不进入数据库，也不通过环境变量配置
 > - 邮件功能默认关闭，启用后支持邮箱验证注册和找回密码
 > - IP属地查询支持主备双API，自动切换保证服务可用性
+> - 日志格式可通过 `LOG_FORMAT=pretty|json` 切换，生产环境更推荐 `json`
 > - 前端使用 Vite 环境变量，变量名需以 `VITE_` 开头
+> - 如果前端通过同域 `/api` 访问后端，推荐 `VITE_USE_REAL_API=false`
 > - 详细配置说明请参考 [部署指南](./doc/DEPLOYMENT.md)
 
-### 1. 安装依赖
+### 1. 启动后端开发环境
 
 ```bash
-# 使用 cnpm或npm
-cnpm install
-# 或使用 yarn
-yarn install
-```
-
-### 2. 启动开发服务器
-
-```bash
-# 启动开发服务器
+cd express-project
+cp .env.example .env
+npm install
+npm run init-db
 npm run dev
-
-# 或使用 yarn
-yarn dev
 ```
 
-开发服务器将在 `http://localhost:5173` 启动
+### 2. 启动前端开发环境
+
+```bash
+cd vue3-project
+cp .env.example .env
+npm install
+npm run dev
+```
+
+前端开发服务器默认运行在 `http://localhost:5173`，后端默认运行在 `http://localhost:3001`。
 
 ### 3. 构建生产版本
 
 ```bash
-# 构建生产版本
+cd vue3-project
 npm run build
 
 # 预览生产版本
