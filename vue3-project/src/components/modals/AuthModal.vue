@@ -45,6 +45,7 @@ import SvgIcon from '@/components/SvgIcon.vue'
 import MessageToast from '@/components/MessageToast.vue'
 import { useUserStore } from '@/stores/user.js'
 import { useScrollLock } from '@/composables/useScrollLock'
+import request from '@/api/request.js'
 
 const emit = defineEmits(['close', 'success'])
 
@@ -69,11 +70,10 @@ const handleGithubLogin = async () => {
   errorMessage.value = ''
 
   try {
-    const response = await fetch('/api/auth/github')
-    const result = await response.json()
+    const result = await request.get('/auth/github')
 
-    if (result.code !== 200) {
-      throw new Error(result.message || '获取 GitHub 授权链接失败')
+    if (!result?.success || !result?.data?.authUrl) {
+      throw new Error(result?.message || '获取 GitHub 授权链接失败')
     }
 
     const authUrl = result.data.authUrl
@@ -104,7 +104,7 @@ const handleGithubLogin = async () => {
 
   } catch (error) {
     console.error('GitHub 登录失败:', error)
-    errorMessage.value = error.message || '登录失败，请稍后重试'
+    errorMessage.value = error?.message || '登录失败，请稍后重试'
     isLoading.value = false
   }
 }
