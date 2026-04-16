@@ -77,14 +77,17 @@
 | user_id | BIGINT | 发布用户ID | 外键关联users |
 | title | VARCHAR(200) | 标题 | 笔记标题 |
 | content | TEXT | 内容 | 笔记描述 |
+| cover_url | VARCHAR(2048) | 外链封面URL | 可为空，文本卡片优先使用 |
 | category_id | INT | 分类ID | 外键关联categories表，可为空 |
-| type | INT | 笔记类型 | 1-图片笔记，2-视频笔记，默认1 |
+| type | INT | 笔记类型 | 当前固定使用1，保留历史媒体兼容字段 |
 | status | TINYINT(1) | 笔记状态 | 0-发布（审核通过），1-草稿，2-待审核，3-未过审，默认2 |
 | view_count | BIGINT | 浏览量 | 统计字段，默认0 |
 | like_count | INT | 点赞数 | 统计字段，默认0 |
 | collect_count | INT | 收藏数 | 统计字段，默认0 |
 | comment_count | INT | 评论数 | 统计字段，默认0 |
 | created_at | TIMESTAMP | 发布时间 | 创建时间 |
+
+> 说明：`post_images` 与 `post_videos` 表仍然保留，用于兼容历史数据和后台管理视图；当前产品方向不再鼓励站内媒体上传。
 
 ### 3. 笔记图片表 (post_images)
 

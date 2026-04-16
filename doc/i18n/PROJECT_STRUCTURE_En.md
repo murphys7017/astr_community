@@ -18,7 +18,9 @@ project-root/
 ```
 vue3-project/
 ├── public/                # Static assets directory
-│   └── logo.ico          # Website favicon
+│   ├── favicon-32x32.png # Browser favicon
+│   ├── favicon-64x64.png # Browser favicon
+│   └── manifest.json     # PWA metadata
 ├── src/                  # Source code directory
 │   ├── api/              # API interface encapsulation
 │   ├── assets/           # Static assets (images, styles, etc.)

@@ -18,7 +18,9 @@ AstrBot Community/
 ```
 vue3-project/
 ├── public/                # 靜態資源目錄
-│   └── logo.ico          # 網站圖示
+│   ├── favicon-32x32.png # 瀏覽器圖示
+│   ├── favicon-64x64.png # 瀏覽器圖示
+│   └── manifest.json     # PWA中繼資料
 ├── src/                  # 原始碼目錄
 │   ├── api/              # API接口封裝
 │   ├── assets/           # 靜態資源（圖片、樣式等）

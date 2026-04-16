@@ -89,13 +89,13 @@
             <h3>版权声明</h3>
             <div class="copyright-content">
               <p>
-                <strong>设计灵感：</strong>本社区的 UI 设计和交互体验参考了内容社区产品，旨在提供熟悉、轻量的讨论体验。
+                <strong>界面来源：</strong>当前界面基础继承自上游 XiaoShiLiu 项目，并持续向 AstrBot Community 的文本社区形态调整。
               </p>
               <p>
                 <strong>开源项目：</strong>本项目基于 GPLv3 协议开源，仅供学习交流使用，不用于商业用途。所有代码遵循 GPLv3 开源协议，欢迎技术交流与讨论。
               </p>
               <p>
-                <strong>免责声明：</strong>本项目与小红书官方无任何关联，所有商标、品牌名称归其各自所有者所有。
+                <strong>免责声明：</strong>本项目与任何第三方内容平台均无官方关联，所有商标、品牌名称归其各自所有者所有。
               </p>
             </div>
           </div>
@@ -119,7 +119,7 @@ const emit = defineEmits(['close'])
 const { lock, unlock } = useScrollLock()
 
 // 静态资源URL
-const logoUrl = new URL('@/assets/imgs/AstrBot.png', import.meta.url).href
+const logoUrl = new URL('@/assets/imgs/logo.png', import.meta.url).href
 const ztmyoUrl = new URL('@/assets/imgs/ztmyo.png', import.meta.url).href
 
 const isAnimating = ref(false)

@@ -180,7 +180,7 @@ class DatabaseInitializer {
         \`content\` text NOT NULL COMMENT '内容',
         \`cover_url\` varchar(2048) DEFAULT NULL COMMENT '帖子外链封面URL',
         \`category_id\` int(11) DEFAULT NULL COMMENT '分类ID',
-        \`type\` int(11) DEFAULT 1 COMMENT '笔记类型：1-图片笔记，2-视频笔记',
+        \`type\` int(11) DEFAULT 1 COMMENT '笔记类型：当前固定使用1，保留历史媒体兼容字段',
         \`view_count\` bigint(20) DEFAULT 0 COMMENT '浏览量',
         \`like_count\` int(11) DEFAULT 0 COMMENT '点赞数',
         \`collect_count\` int(11) DEFAULT 0 COMMENT '收藏数',

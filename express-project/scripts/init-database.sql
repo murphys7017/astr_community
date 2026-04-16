@@ -1,4 +1,4 @@
--- AstrBot 插件社区数据库初始化脚本
+-- AstrBot Community 数据库初始化脚本
 -- 创建数据库（如果不存在）
 CREATE DATABASE IF NOT EXISTS `astr_community` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE `astr_community`;
@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS `posts` (
   `content` text NOT NULL COMMENT '内容',
   `cover_url` varchar(2048) DEFAULT NULL COMMENT '帖子外链封面URL',
   `category_id` int(11) DEFAULT NULL COMMENT '分类ID',
-  `type` int(11) DEFAULT 1 COMMENT '笔记类型：1-图片笔记，2-视频笔记',
+  `type` int(11) DEFAULT 1 COMMENT '笔记类型：当前固定使用1，保留历史媒体兼容字段',
   `view_count` bigint(20) DEFAULT 0 COMMENT '浏览量',
   `like_count` int(11) DEFAULT 0 COMMENT '点赞数',
   `collect_count` int(11) DEFAULT 0 COMMENT '收藏数',
@@ -310,7 +310,7 @@ CREATE TABLE IF NOT EXISTS `user_ban` (
   CONSTRAINT `user_ban_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户封禁表';
 
--- 插入 AstrBot 插件社区分类
+-- 插入 AstrBot Community 默认分类
 INSERT INTO `categories` (`name`, `category_title`) VALUES
 ('插件分享', 'plugins'),
 ('教程文档', 'tutorials'),
@@ -331,5 +331,5 @@ INSERT INTO `admin` (`username`, `password`) VALUES
 ON DUPLICATE KEY UPDATE `username` = VALUES(`username`);
 
 -- 数据库初始化完成
-SELECT 'AstrBot 插件社区数据库初始化完成！' AS message;
+SELECT 'AstrBot Community 数据库初始化完成！' AS message;
 SELECT COUNT(*) AS table_count FROM information_schema.tables WHERE table_schema = 'astr_community';

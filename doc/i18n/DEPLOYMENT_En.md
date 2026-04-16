@@ -38,8 +38,8 @@ The project supports two deployment methods:
 #### 1. Clone the Project
 
 ```bash
-git clone https://github.com/ZTMYO/XiaoShiLiu.git
-cd XiaoShiLiu
+git clone https://github.com/murphys7017/astr_community.git
+cd astr_community
 ```
 
 #### 2. Configure Environment Variables

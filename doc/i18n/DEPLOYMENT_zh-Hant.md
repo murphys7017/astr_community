@@ -38,8 +38,8 @@
 #### 1. 克隆項目
 
 ```bash
-git clone https://github.com/ZTMYO/XiaoShiLiu.git
-cd XiaoShiLiu
+git clone https://github.com/murphys7017/astr_community.git
+cd astr_community
 ```
 
 #### 2. 配置環境變數

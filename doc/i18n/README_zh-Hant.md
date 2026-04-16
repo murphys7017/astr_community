@@ -1,30 +1,31 @@
 <p align="center">
-    <img alt="logo" src="../imgs/小石榴.png" width="100" />
+    <img alt="logo" src="../../vue3-project/src/assets/imgs/logo.png" width="100" />
 </p>
 <h1 align="center" style="margin: 20px 30px 0px 30px; font-weight: bold;">AstrBot Community</h1>
 
 ---
 <p align="center">
-    <b>基於 Express + Vue 前後端分離仿小紅書項目</b>
+    <b>基於 Express + Vue 的前後端分離輕量文字社群</b>
 </p>
 <p align="center">
-    <i>一個高仿小紅書的圖文社群項目，支援圖文發布、社交互動等核心功能，旨在提供從前端到後端的完整實踐範本</i>
+    <i>面向 AstrBot 使用者的輕量文字社群，支援 Markdown、外鏈媒體與完整前後端程式碼</i>
+</p>
 <p align="center"><a href="https://www.shiliu.space">演示網站</a> · <a href="https://www.bilibili.com/video/BV1J4agztEBX/?spm_id_from=333.1387.homepage.video_card.click">影片介紹</a>
 </p>
-<p align="center"><a href="https://github.com/ZTMYO/XiaoShiLiu">簡體中文</a>|<a href="README_En.md">English</a>|<a href="./i18n/README_zh-Hant.md">繁體中文</a>
+<p align="center"><a href="../../README.md">簡體中文</a> | <a href="README_En.md">English</a> | <a href="README_zh-Hant.md">繁體中文</a>
 </p>
 <p align="center">
-    <a href="https://github.com/ZTMYO/XiaoShiLiu/stargazers">
-        <img src="https://img.shields.io/github/stars/ZTMYO/XiaoShiLiu?style=flat&logo=github&color=brightgreen&label=Stars">
+    <a href="https://github.com/murphys7017/astr_community/stargazers">
+        <img src="https://img.shields.io/github/stars/murphys7017/astr_community?style=flat&logo=github&color=brightgreen&label=Stars">
     </a>
-    <a href="https://github.com/ZTMYO/XiaoShiLiu/network/members">
-        <img src="https://img.shields.io/github/forks/ZTMYO/XiaoShiLiu?style=round-square&color=brightgreen&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgdmlld0JveD0iMCAwIDE2IDE2IiBmaWxsPSJub25lIj4KPHBhdGggZmlsbD0id2hpdGUiIGQ9Ik01IDUuMzcydi44NzhjMCAuNDE0LjMzNi43NS43NS43NWg0LjVhLjc1Ljc1IDAgMCAwIC43NS0uNzV2LS44NzhhMi4yNSAyLjI1IDAgMSAxIDEuNSAwdi44NzhhMi4yNSAyLjI1IDAgMCAxLTIuMjUgMi4yNWgtMS41djIuMTI4YTIuMjUxIDIuMjUxIDAgMSAxLTEuNSAwVjguNWgtMS41QTIuMjUgMi4yNSAwIDAgMSAzLjUgNi4yNXYtLjg3OGEyLjI1IDIuMjUgMCAxIDEgMS41IDBaTTUgMy4yNWEuNzUuNzUgMCAxIDAtMS41IDAgLjc1Ljc1IDAgMCAwIDEuNSAwWm02Ljc1Ljc1YS43NS43NSAwIDEgMCAwLTEuNS43NS43NSAwIDAgMCAwIDEuNVptLTMgOC43NWEuNzUuNzUgMCAxIDAtMS41IDAgLjc1Ljc1IDAgMCAwIDEuNSAwWiI+PC9wYXRoPgo8L3N2Zz4=">
+    <a href="https://github.com/murphys7017/astr_community/network/members">
+        <img src="https://img.shields.io/github/forks/murphys7017/astr_community?style=flat&logo=github&color=brightgreen&label=Forks">
     </a>
-    <a href="https://github.com/ZTMYO/XiaoShiLiu">
-        <img src="https://img.shields.io/badge/AstrBot%20Community-v1.3.2-brightgreen.svg?logo=data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB2ZXJzaW9uPSIxLjEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIj4KPHBhdGggZD0iTTAgMCBDNC4yMzMwMTEyMSAyLjgyMjAwNzQ3IDcuMTcxNTk2NjQgNS45NTIyODk5MiA4LjgxMjUgMTAuODc1IEM5LjE4MDc2MjI0IDE2LjQ5MDk5OTE2IDkuMDI4MDYwMDcgMjAuMDUxNjU5ODkgNS44MTI1IDI0Ljg3NSBDMS44ODAxNjE5MSAyOC44NTAzMTQ0NiAtMS4zMzIwOTg0OSAzMC43NTMzMzQzMyAtNyAzMS4xMjUgQy0xMS43MTg5MjIyMyAzMS4wMzg1NzI4NSAtMTUuMjAxOTI2NjkgMjkuODM5MTA3NjUgLTE4LjYzMjgxMjUgMjYuNDQ1MzEyNSBDLTIyLjQ1Nzc0Mjg2IDIyLjA1MjEwNjc3IC0yMy41MDQ5MDc2NCAxOC43NDI5NTY4OSAtMjMuMzk4NDM3NSAxMi45Mjk2ODc1IEMtMjIuOTEyNTgwNTggOC4xOTcwODExNiAtMjAuNjcwMDc0MTQgNS4wOTQ1OTE5MSAtMTcuMTg3NSAyLjA2MjUgQy0xMS43NzQzMTUyMyAtMS44ODQ2MTM5IC02LjE5MjU0NDY4IC0yLjE4NTYwNDAxIDAgMCBaIE0tNy4xODc1IDQuODc1IEMtOC4xNzc1IDUuNTM1IC05LjE2NzUgNi4xOTUgLTEwLjE4NzUgNi44NzUgQy0xMC4xODc1IDcuNTM1IC0xMC4xODc1IDguMTk1IC0xMC4xODc1IDguODc1IEMtMTAuODA2MjUgOS4xNDMxMjUgLTExLjQyNSA5LjQxMTI1IC0xMi4wNjI1IDkuNjg3NSBDLTE0LjQ4NzAyMzMgMTAuODMwNTY4NDggLTE0LjQ4NzAyMzMgMTAuODMwNTY4NDggLTE2LjE4NzUgMTMuODc1IEMtMTYuNTc3NjM3MTYgMTUuODY0Njk5NSAtMTYuOTE5NTI2NDkgMTcuODY1MTk4NjkgLTE3LjE4NzUgMTkuODc1IEMtMTYuMTk3NSAyMC4zNyAtMTYuMTk3NSAyMC4zNyAtMTUuMTg3NSAyMC44NzUgQy0xNC40NjU5MDU3NiAyMi41MTg2MzEzNCAtMTMuNzkzOTg1NzkgMjQuMTg1NTAzODYgLTEzLjE4NzUgMjUuODc1IEMtMTIuNTI3NSAyNS44NzUgLTExLjg2NzUgMjUuODc1IC0xMS4xODc1IDI1Ljg3NSBDLTEwLjg1NzUgMjYuODY1IC0xMC41Mjc1IDI3Ljg1NSAtMTAuMTg3NSAyOC44NzUgQy05LjUyNzUgMjcuODg1IC04Ljg2NzUgMjYuODk1IC04LjE4NzUgMjUuODc1IEMtNi44Njc1IDI1Ljg3NSAtNS41NDc1IDI1Ljg3NSAtNC4xODc1IDI1Ljg3NSBDLTMuODU3NSAyNi44NjUgLTMuNTI3NSAyNy44NTUgLTMuMTg3NSAyOC44NzUgQy0zLjE4NzUgMjcuODg1IC0zLjE4NzUgMjYuODk1IC0zLjE4NzUgMjUuODc1IEMtMi4xOTc1IDI1LjU0NSAtMS4yMDc1IDI1LjIxNSAtMC4xODc1IDI0Ljg3NSBDMC40MDMyMDAxNCAyMi45Mjg5NjcyNiAwLjQwMzIwMDE0IDIyLjkyODk2NzI2IDAuODEyNSAyMC44NzUgQzEuNDcyNSAyMC4yMTUgMi4xMzI1IDE5LjU1NSAyLjgxMjUgMTguODc1IEMxLjU3OTU5MDMxIDEzLjExMDE4NTAyIDEuNTc5NTkwMzEgMTMuMTEwMTg1MDIgLTIuMTg3NSA4Ljg3NSBDLTIuODQ3NSA4Ljg3NSAtMy41MDc1IDguODc1IC00LjE4NzUgOC44NzUgQy00LjE4NzUgNy44ODUgLTQuMTg3NSA2Ljg5NSAtNC4xODc1IDUuODc1IEMtNS4xNzc1IDUuNTQ1IC02LjE2NzUgNS4yMTUgLTcuMTg3NSA0Ljg3NSBaIE0tMTguMTg3NSAxOS44NzUgQy0xOC4xODc1IDIyLjg3NSAtMTguMTg3NSAyMi44NzUgLTE4LjE4NzUgMjIuODc1IFogTTIuODEyNSAxOS44NzUgQzMuMTQyNSAyMC44NjUgMy40NzI1IDIxLjg1NSAzLjgxMjUgMjIuODc1IEMzLjgxMjUgMjEuODg1IDMuODEyNSAyMC44OTUgMy44MTI1IDE5Ljg3NSBDMy40ODI1IDE5Ljg3NSAzLjE1MjUgMTkuODc1IDIuODEyNSAxOS44NzUgWiAiIGZpbGw9IiNGQ0ZDRkMiIHRyYW5zZm9ybT0idHJhbnNsYXRlKDIzLjE4NzUsMS4xMjUpIi8+CjxwYXRoIGQ9Ik0wIDAgQzIuMDYyNSAwLjQzNzUgMi4wNjI1IDAuNDM3NSA0IDEgQzQgMS45OSA0IDIuOTggNCA0IEM0Ljk5IDQuMzMgNS45OCA0LjY2IDcgNSBDMy43ODU0ODczMSA2LjYwNzI1NjM1IDAuNTYzODc0NjQgNi4wNTc0ODE4NSAtMyA2IEMtMS4xMjUgMS4xMjUgLTEuMTI1IDEuMTI1IDAgMCBaICIgZmlsbD0iI0U5RTlFOSIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMTUsMjYpIi8+Cjwvc3ZnPgo=">
+    <a href="https://github.com/murphys7017/astr_community">
+        <img src="https://img.shields.io/badge/AstrBot%20Community-v1.3.2-brightgreen">
     </a>
-    <a href="https://github.com/ZTMYO/XiaoShiLiu/blob/master/LICENSE">
-        <img src="https://img.shields.io/github/license/ZTMYO/XiaoShiLiu?color=8ebc06">
+    <a href="https://github.com/murphys7017/astr_community/blob/master/LICENSE">
+        <img src="https://img.shields.io/github/license/murphys7017/astr_community?color=8ebc06">
     </a>
 </p>
 <p align="center">
@@ -44,7 +45,7 @@
 
 AstrBot Community 基於原始專案 [ZTMYO/XiaoShiLiu](https://github.com/ZTMYO/XiaoShiLiu) 二次改造而來。
 
-目前此倉庫在保留原專案前後端基礎能力的前提下，依照 AstrBot 社群場景調整了品牌、文案、分類結構與登入流程等內容。
+目前此倉庫在保留原專案前後端基礎能力的前提下，依照 AstrBot 社群場景調整了品牌、文案、分類結構、登入流程與文字優先的產品方向。
 
 > 📁 **項目結構說明**：本項目包含完整的前後端程式碼，前端位於 `vue3-project/` 目錄，後端位於 `express-project/` 目錄。詳細結構請查看 [項目結構文件](PROJECT_STRUCTURE_zh-Hant.md)。
 
@@ -323,7 +324,7 @@ npm run preview
 
 ## Star歷史
 
-[![Star History Chart](https://api.star-history.com/svg?repos=ZTMYO/XiaoShiLiu&type=Date)](https://www.star-history.com/#ZTMYO/XiaoShiLiu&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=murphys7017/astr_community&type=Date)](https://www.star-history.com/#murphys7017/astr_community&Date)
 
 ---
 

@@ -1262,47 +1262,22 @@ Authorization: Bearer <your_jwt_token>
 |------|------|------|------|
 | title | string | 否* | 笔记标题（发布时必填，草稿时可选） |
 | content | string | 否* | 笔记内容（发布时必填，草稿时可选） |
+| cover_url | string | 否 | 外链封面地址，仅支持 http/https |
 | category_id | int | 否 | 分类ID |
-| type | int | 否 | 笔记类型：1-图文笔记（默认），2-视频笔记 |
-| images | array | 否 | 图片URL数组（图文笔记使用） |
-| video | object | 否 | 视频信息对象（视频笔记使用） |
+| type | int | 否 | 当前忽略，文本帖子固定按 `1` 处理 |
+| images | array | 否 | 当前不支持，传入会被拒绝 |
+| video | object/string | 否 | 当前不支持，传入会被拒绝 |
 | tags | array | 否 | 标签名称数组（字符串数组） |
 | status | int | 否 | 笔记状态，0=发布（审核通过），1=草稿，2=待审核（默认2） |
 
-**video对象结构**:
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| url | string | 是 | 视频文件URL |
-| coverUrl | string | 否 | 视频封面图片URL |
-
-**请求示例（图文笔记）**:
+**请求示例**:
 ```json
 {
-  "title": "分享一个美好的下午",
-  "content": "今天天气很好，在公园里散步...",
+  "title": "AstrBot 社区 Markdown 发帖示例",
+  "content": "# 今日记录\n\n这里是一段 Markdown 正文。\n\n![封面外链](https://example.com/cover.webp)\n\n[::video](https://www.bilibili.com/video/BV1xx411c7mD)",
+  "cover_url": "https://example.com/cover.webp",
   "category_id": 5,
-  "type": 1,
-  "images": [
-    "https://example.com/image1.jpg",
-    "https://example.com/image2.jpg"
-  ],
-  "tags": ["生活", "摄影", "分享"],
-  "status": 0
-}
-```
-
-**请求示例（视频笔记）**:
-```json
-{
-  "title": "美丽的风景视频",
-  "content": "记录下这美好的一刻...",
-  "category_id": 5,
-  "type": 2,
-  "video": {
-    "url": "https://video.example.com/video.mp4",
-    "coverUrl": "https://img.example.com/video_cover.jpg"
-  },
-  "tags": ["生活", "视频", "分享"],
+  "tags": ["AstrBot", "Markdown", "分享"],
   "status": 0
 }
 ```
@@ -1403,27 +1378,20 @@ Authorization: Bearer <your_jwt_token>
 |------|------|------|------|
 | title | string | 否 | 笔记标题（发布时必填，草稿时可选） |
 | content | string | 否 | 笔记内容（发布时必填，草稿时可选） |
+| cover_url | string | 否 | 外链封面地址，仅支持 http/https |
 | category_id | int | 否 | 分类ID（发布时必填，草稿时可选） |
-| images | array | 否 | 图片URL数组（图文笔记使用） |
-| video | object | 否 | 视频信息对象（视频笔记使用） |
+| images | array | 否 | 当前不支持，传入会被拒绝 |
+| video | object/string | 否 | 当前不支持，传入会被拒绝 |
 | tags | array | 否 | 标签名称数组（字符串数组） |
 | status | int | 否 | 笔记状态，0=发布（审核通过），1=草稿，2=待审核（默认2） |
-
-**video对象结构**:
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| url | string | 是 | 视频文件URL |
-| coverUrl | string | 否 | 视频封面图片URL |
 
 **请求示例**:
 ```json
 {
   "title": "更新后的标题",
-  "content": "更新后的内容",
+  "content": "更新后的 Markdown 内容",
+  "cover_url": "https://example.com/new-cover.webp",
   "category_id": 2,
-  "images": [
-    "https://example.com/new_image1.jpg"
-  ],
   "tags": ["生活", "日常", "分享"],
   "status": 0
 }
@@ -2044,93 +2012,30 @@ Authorization: Bearer <your_jwt_token>
 
 ---
 
-## 图片上传接口
+## 上传接口（当前默认禁用）
 
-### 1. 单图片上传
+当前版本默认关闭站内文件上传，`/api/upload/*` 接口会返回“平台当前已关闭文件上传，请改用外链内容”。
+
+### 1. 单图片上传（已禁用）
 **接口地址**: `POST /api/upload/single`
 **需要认证**: 是
 
-**请求参数**:
-- 使用 `multipart/form-data` 格式
-- 文件字段名: `file`
-- 支持格式: jpg, jpeg, png, webp
-- 文件大小限制: 5MB
+**当前行为**:
+- 返回错误信息：`平台当前已关闭文件上传，请改用外链内容`
 
-**响应示例**:
-```json
-{
-  "code": 200,
-  "message": "图片上传成功",
-  "data": {
-    "originalname": "image.jpg",
-    "size": 1024000,
-    "url": "https://img.example.com/1640995200000_image.jpg"
-  }
-}
-```
-
-### 2. 多图片上传
+### 2. 多图片上传（已禁用）
 **接口地址**: `POST /api/upload/multiple`
 **需要认证**: 是
 
-**请求参数**:
-- 使用 `multipart/form-data` 格式
-- 文件字段名: `files`
-- 最多支持9个文件
-- 支持格式: jpg, jpeg, png, webp
-- 单文件大小限制: 5MB
+**当前行为**:
+- 返回错误信息：`平台当前已关闭文件上传，请改用外链内容`
 
-**响应示例**:
-```json
-{
-  "code": 200,
-  "message": "文件上传成功",
-  "data": [
-    {
-      "originalname": "image1.jpg",
-      "size": 1024000,
-      "url": "https://img.example.com/1640995200000_image1.jpg"
-    },
-    {
-      "originalname": "image2.jpg",
-      "size": 2048000,
-      "url": "https://img.example.com/1640995200001_image2.jpg"
-    }
-  ]
-}
-```
-
-### 3. 单视频上传
+### 3. 单视频上传（已禁用）
 **接口地址**: `POST /api/upload/video`
 **需要认证**: 是
 
-**请求参数**:
-- 使用 `multipart/form-data` 格式
-- 文件字段名: `file`
-- 支持格式: mp4, avi, mov, wmv, flv, webm
-- 文件大小限制: 100MB
-
-**响应示例**:
-```json
-{
-  "code": 200,
-  "message": "上传成功",
-  "data": {
-    "originalname": "video.mp4",
-    "size": 10240000,
-    "url": "https://video.example.com/1640995200000_video.mp4",
-    "filePath": "/uploads/videos/1640995200000_video.mp4",
-    "coverUrl": "https://img.example.com/1640995200000_video_thumbnail.jpg"
-  }
-}
-```
-
-**说明**:
-- `url`: 视频文件的访问URL
-- `filePath`: 视频文件在服务器上的存储路径
-- `coverUrl`: 视频封面图片URL（如果FFmpeg可用则自动生成，否则为null）
-- 视频封面图片会自动从视频第一帧提取，尺寸为640x360
-- 如果系统未安装FFmpeg，视频仍可正常上传，但不会生成封面图片
+**当前行为**:
+- 返回错误信息：`平台当前已关闭文件上传，请改用外链内容`
 
 
 
@@ -2750,8 +2655,8 @@ async function example() {
 
 1. **认证要求**: 需要认证的接口必须在请求头中携带有效的JWT token
 2. **Token管理**: 访问令牌有效期为1小时，刷新令牌有效期为7天
-3. **请求格式**: 所有POST/PUT请求需要设置`Content-Type: application/json`（文件上传除外）
-4. **图片上传**: 图片上传接口使用`multipart/form-data`格式，支持jpg、jpeg、png、gif、webp格式，单图片最大5MB
+3. **请求格式**: 所有 POST/PUT 请求默认使用 `Content-Type: application/json`
+4. **上传接口**: `/api/upload/*` 当前默认关闭，请改用外链内容
 5. **状态切换**: 点赞、收藏、关注等操作支持切换状态（已点赞则取消点赞）
 6. **自动更新**: 访问笔记详情会自动增加浏览量，创建评论会自动更新笔记的评论数
 7. **关系更新**: 关注操作会自动更新用户的关注数和粉丝数
