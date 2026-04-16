@@ -146,7 +146,7 @@ const themeStore = useThemeStore()
 const { confirmState, handleConfirm, handleCancel, confirmLogout } = useConfirm()
 const { lock, unlock } = useScrollLock()
 
-const logoUrl = new URL('@/assets/imgs/小石榴.png', import.meta.url).href
+const logoUrl = new URL('@/assets/imgs/logo.png', import.meta.url).href
 
 const indicatorPosition = computed(() => {
   const index = themeStore.themeOptions.findIndex(option => option.value === themeStore.currentTheme)

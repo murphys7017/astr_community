@@ -12,7 +12,6 @@ const route = useRoute()
 const searchHistoryStore = useSearchHistoryStore()
 
 // 静态资源URL
-const logoUrl = new URL('@/assets/imgs/AstrBot.png', import.meta.url).href
 
 const isLargeScreen = ref(window.innerWidth > 695)
 const showSidebar = ref(window.innerWidth > 960)
@@ -175,7 +174,7 @@ onUnmounted(() => {
         <div class="header-container">
             <template v-if="displaySearch">
                 <div v-if="isLargeScreen" class="logo" @click="router.push('/')">
-                    <img :src="logoUrl" alt="AstrBot" />
+                    AstrBot
                 </div>
                 <div class="search-row" :class="{ 'large-screen': isLargeScreen, 'small-screen': !isLargeScreen }">
                     <div class="search-bar-container">
@@ -215,7 +214,7 @@ onUnmounted(() => {
 
             <template v-else>
                 <div class="logo" @click="router.push('/')">
-                    <img :src="logoUrl" alt="AstrBot" />
+                    AstrBot
                 </div>
                 <div class="header-right">
                     <div @click="openSearch" class="circle-btn">
@@ -263,19 +262,22 @@ header {
 }
 
 .logo {
-    width: 68.32px;
     height: 32px;
+    padding: 0 12px;
     color: var(--button-text-color);
     background: var(--primary-color);
     border-radius: 999px;
     display: flex;
     align-items: center;
     justify-content: center;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
 }
 
-img {
-    width: 68.32px;
-    height: 32px;
+.logo:hover {
+    opacity: 0.85;
 }
 
 .header-right {
