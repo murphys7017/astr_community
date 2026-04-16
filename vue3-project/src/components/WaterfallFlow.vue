@@ -16,6 +16,7 @@ import defaultAvatar from '@/assets/imgs/avatar.png'
 import defaultPlaceholder from '@/assets/imgs/未加载.png'
 import { stuckItemManager } from '@/directives/index.js'
 import MarkdownIt from 'markdown-it'
+import { stripStandaloneCustomBlocks } from '@/utils/markdownContent'
 
 const props = defineProps({
     refreshKey: {
@@ -101,9 +102,6 @@ const md = new MarkdownIt({
     breaks: true
 })
 
-// 自定义块语法正则（用于预览时移除这些块）
-const BLOCK_REGEX = /^\[::(\w+)\]\((https?:\/\/[^\)]+)\)$/gm
-
 // 计算当前应该使用的列数
 const updateColumnCount = () => {
     const width = window.innerWidth
@@ -142,11 +140,22 @@ const getShortestColumnIndex = () => {
     return columnHeights.value.indexOf(minHeight)
 }
 
+const getTextCardCoverHeight = () => {
+    const horizontalPadding = window.innerWidth <= 600 ? 24 : 32
+    const availableWidth = window.innerWidth - horizontalPadding - (Math.max(columnCount.value - 1, 0) * columnGap.value)
+    const estimatedColumnWidth = Math.max(140, availableWidth / Math.max(columnCount.value, 1))
+
+    return Math.round(Math.max(228, Math.min(320, estimatedColumnWidth * 1.18)))
+}
+
 // 估算item高度（用于初始布局）
 const estimateItemHeight = (item) => {
     const hasImage = Boolean(item.image)
-    const baseHeight = hasImage ? 200 : 72
     const bottomHeight = 50 // 底部信息区域高度
+
+    if (!hasImage) {
+        return getTextCardCoverHeight() + bottomHeight
+    }
 
     // 根据标题长度调整高度
     const titleLines = Math.ceil(item.title.length / 20) // 估算标题行数
@@ -157,7 +166,7 @@ const estimateItemHeight = (item) => {
     const previewHeight = hasImage ? 0 : previewLines * 18 + 16
 
     // 根据图片比例调整高度（如果有的话）
-    let imageHeight = baseHeight
+    let imageHeight = 200
     if (hasImage && item.aspectRatio) {
         // 假设容器宽度，计算图片高度
         const containerWidth = window.innerWidth >= 900 ?
@@ -228,13 +237,7 @@ const getCardPreview = (content = '') => {
         // 确保 content 是字符串
         const contentStr = String(content)
 
-        // 移除自定义块语法行（[::md](url) 和 [::video](url)）
-        const lines = contentStr.split('\n')
-        const filteredLines = lines.filter(line => {
-            BLOCK_REGEX.lastIndex = 0
-            return !BLOCK_REGEX.test(line)
-        })
-        const cleanedContent = filteredLines.join('\n')
+        const cleanedContent = stripStandaloneCustomBlocks(contentStr)
 
         // 渲染 markdown 为 HTML
         const html = md.render(cleanedContent)
@@ -329,7 +332,7 @@ async function initContent() {
                     fadeIn: false
                 }
             })
-            Object.assign(newItemAnimStates.value, newAnimStates)
+            newItemAnimStates.value = newAnimStates
         }
 
         contentList.value = content
@@ -898,8 +901,12 @@ function isItemFullyLoaded(itemId) {
     return state && state.imageLoaded
 }
 
-// 淡入动画结束处理
-function onFadeInEnd(item) {
+// 淡入过渡结束处理
+function onFadeInEnd(item, event) {
+    if (event?.target !== event?.currentTarget || event?.propertyName !== 'opacity') {
+        return
+    }
+
     if (newItemAnimStates.value[item.id]) {
         // 动画结束后移除新内容标记，避免重复动画
         delete newItemAnimStates.value[item.id]
@@ -957,7 +964,7 @@ function handleImageError(event) {
                 <div v-for="item in column" :key="item.id" :data-item-id="item.id" class="waterfall-item" :class="{
                     'new-item': newItemAnimStates[item.id]?.isNew,
                     'fade-in': newItemAnimStates[item.id]?.fadeIn
-                }" @animationend="onFadeInEnd(item)">
+                }" @transitionend="onFadeInEnd(item, $event)">
 
                     <BaseSkeleton v-if="!isItemFullyLoaded(item.id)" type="image-card" image-height="random"
                         :show-stats="false" :show-button="false" />
@@ -973,10 +980,12 @@ function handleImageError(event) {
                             </div>
                         </div>
                         <div v-else class="content-img content-img--text" @click="onCardClick(item, $event)">
-                            <div class="text-card-badge">纯文本</div>
-                            <p class="text-card-preview">{{ getCardPreview(item.content) || '这是一条纯文本内容' }}</p>
+                            <div class="text-card-main">
+                                <div class="text-card-title">{{ item.title || '未命名帖子' }}</div>
+                                <p class="text-card-preview">{{ getCardPreview(item.content) || '这是一条纯文本内容' }}</p>
+                            </div>
                         </div>
-                        <div class="content-title">{{ item.title }}</div>
+                        <div v-if="item.image" class="content-title">{{ item.title }}</div>
                         <div class="contentlist">
                             <img v-img-lazy="item.avatar" alt="" class="lazy-avatar clickable-avatar"
                                 @error="handleAvatarError" @load="onImageLoaded(item.id, 'avatarLoaded')"
@@ -1035,6 +1044,8 @@ function handleImageError(event) {
     align-items: flex-start;
     width: 100%;
     gap: 16px;
+    padding-top: 8px;
+    box-sizing: border-box;
     /* 优化大屏多列布局的渲染性能 */
     contain: layout style;
     /* 禁用硬件加速可能导致的渲染问题 */
@@ -1058,11 +1069,11 @@ function handleImageError(event) {
 .waterfall-item {
     width: 100%;
     border-radius: 10px;
-    overflow: hidden;
+    overflow: visible;
     background-color: var(--bg-color-primary);
     position: relative;
     box-sizing: border-box;
-    transition: border-color 0.2s ease, background-color 0.2s ease;
+    transition: transform 0.2s ease, border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
     /* 修复大屏多列可能的显示问题 */
     visibility: visible;
     opacity: 1;
@@ -1090,6 +1101,11 @@ function handleImageError(event) {
 /* 动画完成后移除will-change */
 .waterfall-item:not(.new-item) {
     will-change: auto;
+}
+
+.waterfall-item:not(.new-item):hover {
+    transform: translateY(-4px) translateZ(0);
+    z-index: 3;
 }
 
 /* 空状态样式 */
@@ -1131,39 +1147,89 @@ function handleImageError(event) {
 }
 
 .content-img--text {
-    min-height: 100px;
-    padding: 14px;
-    border-radius: 12px;
-    border: 1px solid var(--border-color-primary);
-    background: var(--bg-color-secondary);
+    position: relative;
+    width: 100%;
+    min-width: 0;
+    min-height: 228px;
+    aspect-ratio: 4 / 5;
+    padding: 18px 18px 20px;
+    border-radius: 18px;
+    border: 1px solid rgba(18, 142, 124, 0.12);
+    background:
+        linear-gradient(180deg, rgba(24, 185, 157, 0.08), rgba(255, 255, 255, 0) 46%),
+        radial-gradient(circle at 88% 16%, rgba(24, 185, 157, 0.10), transparent 34%),
+        linear-gradient(160deg, rgba(255, 255, 255, 0.96), rgba(247, 251, 249, 0.98));
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    gap: 8px;
-    transition: all 0.2s ease;
+    gap: 14px;
+    overflow: hidden;
+    isolation: isolate;
+    box-sizing: border-box;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.content-img--text::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(135deg, rgba(24, 185, 157, 0.045) 0%, transparent 30%),
+        repeating-linear-gradient(0deg, rgba(24, 185, 157, 0.04), rgba(24, 185, 157, 0.04) 1px, transparent 1px, transparent 24px);
+    opacity: 0.92;
+    pointer-events: none;
+    z-index: -2;
+}
+
+.content-img--text::after {
+    content: '';
+    position: absolute;
+    inset: auto -10% -38% 12%;
+    height: 92px;
+    background: radial-gradient(circle, rgba(24, 185, 157, 0.14), transparent 72%);
+    filter: blur(22px);
+    pointer-events: none;
+    z-index: -1;
 }
 
 .content-img--text:hover {
     border-color: var(--primary-color);
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 12px 28px rgba(18, 142, 124, 0.16);
+    transform: none;
 }
 
-.text-card-badge {
-    font-size: 11px;
-    letter-spacing: 0.08em;
+.text-card-main {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 12px;
+    flex: 1;
+    width: 100%;
+    min-width: 0;
+}
+
+.text-card-title {
+    margin: 0;
+    color: var(--text-color-primary);
+    font-size: 18px;
     font-weight: 700;
-    color: var(--primary-color);
-    text-transform: uppercase;
+    line-height: 1.45;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.42);
 }
 
 .text-card-preview {
     margin: 0;
-    color: var(--text-color-primary);
-    font-size: 14px;
-    line-height: 1.6;
+    color: var(--text-color-secondary);
+    font-size: 13px;
+    line-height: 1.72;
     display: -webkit-box;
-    -webkit-line-clamp: 4;
-    line-clamp: 4;
+    -webkit-line-clamp: 6;
+    line-clamp: 6;
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-overflow: ellipsis;

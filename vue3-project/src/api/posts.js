@@ -3,8 +3,27 @@ import request from './request.js'
 import apiConfig from '@/config/api.js'
 import { hasViewedPost, markPostAsViewed } from '@/utils/viewTracker.js'
 
+function normalizeDisplayImages(backendPost) {
+  const rawImages = Array.isArray(backendPost.images) ? backendPost.images.filter(Boolean) : []
+
+  if (rawImages.length > 0) {
+    return rawImages
+  }
+
+  if (backendPost.type !== 2 && backendPost.cover_url) {
+    return [backendPost.cover_url]
+  }
+
+  if (backendPost.image) {
+    return [backendPost.image]
+  }
+
+  return []
+}
+
 // 转换后端数据格式为前端瀑布流需要的格式
 function transformPostData(backendPost) {
+  const normalizedImages = normalizeDisplayImages(backendPost)
 
   const likeCount = backendPost.like_count || 0
   const liked = backendPost.liked || false
@@ -15,10 +34,10 @@ function transformPostData(backendPost) {
 
   const transformedData = {
     id: backendPost.id,
-    image: backendPost.image || (backendPost.images && backendPost.images[0]) || backendPost.cover_url || null,
+    image: backendPost.image || normalizedImages[0] || backendPost.cover_url || null,
     title: backendPost.title,
     content: backendPost.content,
-    images: backendPost.images || [],
+    images: normalizedImages,
     // 视频相关字段
     video_url: backendPost.video_url,
     cover_url: backendPost.cover_url,
@@ -52,7 +71,7 @@ function transformPostData(backendPost) {
     // 保留原始数据以备需要
     originalData: {
       content: backendPost.content,
-      images: backendPost.images || [],
+      images: normalizedImages,
       tags: backendPost.tags || [],
       createdAt: backendPost.created_at,
       userId: backendPost.user_id

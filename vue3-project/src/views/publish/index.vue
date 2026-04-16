@@ -38,10 +38,39 @@
         </div>
 
         <div class="input-section">
+          <label class="input-label" for="cover-url-input">封面链接</label>
+          <input
+            id="cover-url-input"
+            v-model="form.cover_url"
+            type="url"
+            class="cover-url-input"
+            placeholder="可选：请输入封面外链，用于卡片封面展示"
+            maxlength="2048"
+          />
+          <div class="input-hint">仅记录外链地址，不走站内图片上传。建议使用稳定的 http/https 图片链接。</div>
+        </div>
+
+        <div class="input-section">
           <div class="content-input-wrapper">
             <textarea v-model="form.content" class="content-textarea" placeholder="请输入内容（支持 Markdown）" maxlength="5242880"></textarea>
             <div class="char-count">{{ form.content.length }}/5242880</div>
           </div>
+          <div class="content-toolbar">
+            <button type="button" class="import-markdown-btn" @click="triggerMarkdownImport">
+              <SvgIcon name="post" width="16" height="16" />
+              <span>导入 Markdown 文件</span>
+            </button>
+            <span v-if="importedMarkdownFileName" class="imported-file-name">
+              已导入：{{ importedMarkdownFileName }}
+            </span>
+          </div>
+          <input
+            ref="markdownFileInput"
+            type="file"
+            accept=".md,.markdown,text/markdown,text/plain"
+            class="hidden-file-input"
+            @change="handleMarkdownFileSelect"
+          />
         </div>
 
         <div class="markdown-help">
@@ -114,10 +143,16 @@ const isSavingDraft = ref(false)
 const showToast = ref(false)
 const toastMessage = ref('')
 const toastType = ref('success')
+const markdownFileInput = ref(null)
+const importedMarkdownFileName = ref('')
+
+const MAX_CONTENT_LENGTH = 5242880
+const MAX_MARKDOWN_FILE_SIZE = 2 * 1024 * 1024
 
 const form = reactive({
   title: '',
   content: '',
+  cover_url: '',
   tags: [],
   category_id: null
 })
@@ -187,12 +222,99 @@ const handleCategoryChange = (data) => {
   form.category_id = data.value
 }
 
+const resetMarkdownFileInput = () => {
+  if (markdownFileInput.value) {
+    markdownFileInput.value.value = ''
+  }
+}
+
+const isValidHttpUrl = (value) => {
+  try {
+    const parsedUrl = new URL(value)
+    return parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+const normalizeCoverUrl = () => {
+  const value = form.cover_url.trim()
+  if (!value) {
+    return ''
+  }
+
+  if (!isValidHttpUrl(value)) {
+    return null
+  }
+
+  return value
+}
+
+const triggerMarkdownImport = () => {
+  markdownFileInput.value?.click()
+}
+
+const handleMarkdownFileSelect = async (event) => {
+  const file = event.target?.files?.[0]
+  if (!file) {
+    return
+  }
+
+  const isMarkdownFile = /\.(md|markdown)$/i.test(file.name) || ['text/markdown', 'text/plain', ''].includes(file.type)
+  if (!isMarkdownFile) {
+    showMessage('请选择 Markdown 文件（.md / .markdown）', 'error')
+    resetMarkdownFileInput()
+    return
+  }
+
+  if (file.size > MAX_MARKDOWN_FILE_SIZE) {
+    showMessage('Markdown 文件不能超过 2MB', 'error')
+    resetMarkdownFileInput()
+    return
+  }
+
+  try {
+    const markdownText = await file.text()
+    if (!markdownText.trim()) {
+      showMessage('Markdown 文件内容为空', 'error')
+      resetMarkdownFileInput()
+      return
+    }
+
+    const currentContent = form.content.trim() ? form.content.replace(/\s+$/, '') : ''
+    const nextContent = currentContent ? `${currentContent}\n\n${markdownText}` : markdownText
+
+    if (nextContent.length > MAX_CONTENT_LENGTH) {
+      showMessage('导入后内容超出长度限制', 'error')
+      resetMarkdownFileInput()
+      return
+    }
+
+    form.content = nextContent
+    importedMarkdownFileName.value = file.name
+
+    if (!form.title.trim()) {
+      form.title = file.name.replace(/\.(md|markdown)$/i, '')
+    }
+
+    showMessage(currentContent ? 'Markdown 文件已追加到内容中' : 'Markdown 文件已导入', 'success')
+  } catch (error) {
+    console.error('Markdown 文件导入失败:', error)
+    showMessage('Markdown 文件导入失败', 'error')
+  } finally {
+    resetMarkdownFileInput()
+  }
+}
+
 // 重置表单
 const resetForm = () => {
   form.title = ''
   form.content = ''
+  form.cover_url = ''
   form.tags = []
   form.category_id = null
+  importedMarkdownFileName.value = ''
+  resetMarkdownFileInput()
 }
 
 // 加载草稿数据
@@ -204,6 +326,8 @@ const loadDraftData = async (draftId) => {
       const draft = response.originalData
       form.title = response.title || ''
       form.content = draft.content || ''
+      form.cover_url = fullData.cover_url || draft.cover_url || draft.images?.[0] || ''
+      importedMarkdownFileName.value = ''
 
       if (draft.tags && Array.isArray(draft.tags)) {
         form.tags = draft.tags.map(tag => {
@@ -226,7 +350,13 @@ const loadDraftData = async (draftId) => {
       currentDraftId.value = draftId
       isEditMode.value = true
 
-      if ((Array.isArray(draft.images) && draft.images.length > 0) || fullData.video_url || fullData.type === 2) {
+      const hasCoverOnlyImage = Array.isArray(draft.images) &&
+        draft.images.length === 1 &&
+        Boolean(form.cover_url) &&
+        draft.images[0] === form.cover_url &&
+        fullData.type !== 2
+
+      if ((Array.isArray(draft.images) && draft.images.length > 0 && !hasCoverOnlyImage) || fullData.video_url || fullData.type === 2) {
         showMessage('检测到历史媒体内容，当前编辑不会再新增或修改媒体文件', 'info')
       }
 
@@ -258,12 +388,19 @@ const handlePublish = async () => {
     return
   }
 
+  const normalizedCoverUrl = normalizeCoverUrl()
+  if (normalizedCoverUrl === null) {
+    showMessage('封面链接格式不正确，请使用 http/https 链接', 'error')
+    return
+  }
+
   isPublishing.value = true
 
   try {
     const postData = {
       title: form.title.trim(),
       content: form.content,
+      cover_url: normalizedCoverUrl || null,
       images: [],
       video: null,
       tags: form.tags,
@@ -302,12 +439,19 @@ const handleSaveDraft = async () => {
     return
   }
 
+  const normalizedCoverUrl = normalizeCoverUrl()
+  if (normalizedCoverUrl === null) {
+    showMessage('封面链接格式不正确，请使用 http/https 链接', 'error')
+    return
+  }
+
   isSavingDraft.value = true
 
   try {
     const draftData = {
       title: form.title.trim() || '',
       content: form.content || '',
+      cover_url: normalizedCoverUrl || null,
       images: [],
       video: null,
       tags: form.tags || [],
@@ -461,6 +605,14 @@ const handleSaveDraft = async () => {
   position: relative;
 }
 
+.input-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-color-primary);
+}
+
 .title-input {
   width: 100%;
   padding: 10px 12px;
@@ -480,6 +632,33 @@ const handleSaveDraft = async () => {
 }
 
 .title-input::placeholder {
+  color: var(--text-color-secondary);
+}
+
+.cover-url-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color-primary);
+  border-radius: 8px;
+  background: var(--bg-color-primary);
+  color: var(--text-color-primary);
+  font-size: 14px;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.cover-url-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.cover-url-input::placeholder {
+  color: var(--text-color-secondary);
+}
+
+.input-hint {
+  margin-top: 8px;
+  font-size: 12px;
   color: var(--text-color-secondary);
 }
 
@@ -519,6 +698,42 @@ const handleSaveDraft = async () => {
 .content-textarea::placeholder {
   color: var(--text-color-secondary);
   font-family: inherit;
+}
+
+.content-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.import-markdown-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border: 1px solid var(--border-color-primary);
+  border-radius: 8px;
+  background: var(--bg-color-secondary);
+  color: var(--text-color-primary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.import-markdown-btn:hover {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.imported-file-name {
+  font-size: 13px;
+  color: var(--text-color-secondary);
+}
+
+.hidden-file-input {
+  display: none;
 }
 
 /* Markdown 帮助 */

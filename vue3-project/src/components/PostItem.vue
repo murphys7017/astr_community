@@ -6,8 +6,8 @@
         <img v-if="post.type === 2 && post.images && post.images.length > 0" :src="post.images[0]" :alt="post.title"
           @error="handleImageError" />
         <img
-          v-else-if="post.type !== 2 && ((post.originalData?.images && post.originalData.images.length > 0) || (post.images && post.images.length > 0))"
-          :src="(post.originalData?.images && post.originalData.images[0]) || (post.images && post.images[0]) || post.image"
+          v-else-if="post.type !== 2 && postDisplayImage"
+          :src="postDisplayImage"
           :alt="post.title" @error="handleImageError" />
         <div v-else-if="post.type === 2" class="video-thumbnail">
           <span>视频</span>
@@ -71,6 +71,7 @@
 <script setup>
 import SvgIcon from './SvgIcon.vue'
 import defaultPlaceholder from '@/assets/imgs/未加载.png'
+import { computed } from 'vue'
 
 // Props定义
 const props = defineProps({
@@ -80,6 +81,14 @@ const props = defineProps({
     default: () => ({})
   }
 })
+
+const postDisplayImage = computed(() =>
+  props.post?.cover_url ||
+  props.post?.image ||
+  (props.post?.originalData?.images && props.post.originalData.images[0]) ||
+  (props.post?.images && props.post.images[0]) ||
+  ''
+)
 
 // 事件定义
 const emit = defineEmits(['edit', 'delete', 'view'])

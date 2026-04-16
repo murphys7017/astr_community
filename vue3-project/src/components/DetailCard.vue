@@ -160,9 +160,9 @@
             </div>
             <div class="post-content">
               <h2 class="post-title">{{ postData.title }}</h2>
-              <p class="post-text">
+              <div class="post-text">
                 <MarkdownRenderer :content="postData.content" />
-              </p>
+              </div>
               <div class="post-tags">
                 <span v-for="tag in postData.tags" :key="tag" class="tag clickable-tag" @click="handleTagClick(tag)">#{{
                   tag }}</span>
@@ -1575,9 +1575,9 @@ const getCommentUserHoverConfig = (comment) => {
           // 收集每个笔记的第一张图片作为封面
           const coverImages = []
           postsResponse.data.posts.forEach((post) => {
-            // 使用图片数组的第一张作为封面
-            if (post.images && post.images.length > 0) {
-              coverImages.push(post.images[0])
+            const coverImage = post.cover_url || post.image || (post.images && post.images[0]) || null
+            if (coverImage) {
+              coverImages.push(coverImage)
             }
           })
           // 取前3张封面图
@@ -1730,9 +1730,9 @@ const getAuthorUserHoverConfig = () => {
           // 收集每个笔记的第一张图片作为封面
           const coverImages = []
           postsResponse.data.posts.forEach((post) => {
-            // 使用图片数组的第一张作为封面
-            if (post.images && post.images.length > 0) {
-              coverImages.push(post.images[0])
+            const coverImage = post.cover_url || post.image || (post.images && post.images[0]) || null
+            if (coverImage) {
+              coverImages.push(coverImage)
             }
           })
           // 取前3张封面图
@@ -2704,7 +2704,7 @@ function handleAvatarError(event) {
 .close-btn {
   position: absolute;
   top: 16px;
-  left: 16px;
+  right: 16px;
   width: 40px;
   height: 40px;
   border: none;
@@ -2725,8 +2725,8 @@ function handleAvatarError(event) {
 .tooltip {
   position: absolute;
   top: 50px;
-  left: 60%;
-  transform: translateX(-50%);
+  right: 50%;
+  transform: translateX(50%);
   background: rgba(0, 0, 0, 0.8);
   color: white;
   padding: 5px;
@@ -2743,8 +2743,8 @@ function handleAvatarError(event) {
   content: '';
   position: absolute;
   top: -4px;
-  left: 46%;
-  transform: translateX(-50%);
+  right: 50%;
+  transform: translateX(50%);
   width: 0;
   height: 0;
   border-left: 4px solid transparent;
@@ -3060,8 +3060,8 @@ function handleAvatarError(event) {
   line-height: 1.6;
   margin: 0 0 16px 0;
   word-wrap: break-word;
-  word-break: break-all;
-  overflow-wrap: break-word;
+  word-break: normal;
+  overflow-wrap: anywhere;
 }
 
 .post-tags {
@@ -4036,7 +4036,7 @@ function handleAvatarError(event) {
     position: fixed;
     top: calc(16px + constant(safe-area-inset-top));
     top: calc(16px + env(safe-area-inset-top));
-    left: 16px;
+    right: 16px;
     z-index: 1001;
     background: transparent;
     color: var(--text-color-secondary);

@@ -162,9 +162,9 @@ const userHoverConfig = computed(() => ({
                 // 收集每个笔记的第一张图片作为封面
                 const coverImages = []
                 postsResponse.data.posts.forEach((post) => {
-                    // 使用图片数组的第一张作为封面
-                    if (post.images && post.images.length > 0) {
-                        coverImages.push(post.images[0])
+                    const coverImage = post.cover_url || post.image || (post.images && post.images[0]) || null
+                    if (coverImage) {
+                        coverImages.push(coverImage)
                     }
                 })
                 // 取前3张封面图
