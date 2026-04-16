@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/config');
 const { success, error } = require('../utils/responseHelper');
+const logger = require('../utils/logger').child({ module: 'categories' });
 
 /**
  * @api {get} /api/categories 获取分类列表
@@ -80,7 +81,7 @@ router.get('/', async (req, res) => {
 
     success(res, categories, '获取成功');
   } catch (err) {
-    console.error('获取分类列表失败:', err);
+    logger.error('Get categories failed', { error: err });
     error(res, '获取分类列表失败');
   }
 });

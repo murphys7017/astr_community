@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { HTTP_STATUS, RESPONSE_CODES, ERROR_MESSAGES } = require('../constants');
 const { pool } = require('../config/config');
+const logger = require('../utils/logger').child({ module: 'tags' });
 
 // 获取所有标签
 router.get('/', async (req, res) => {
@@ -17,7 +18,7 @@ router.get('/', async (req, res) => {
       data: rows
     });
   } catch (error) {
-    console.error('获取标签列表失败:', error);
+    logger.error('Get tags failed', { error });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -42,7 +43,7 @@ router.get('/hot', async (req, res) => {
       data: rows
     });
   } catch (error) {
-    console.error('获取热门标签失败:', error);
+    logger.error('Get hot tags failed', { error, limit: req.query.limit || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });

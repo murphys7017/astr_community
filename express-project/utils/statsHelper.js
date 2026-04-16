@@ -1,4 +1,5 @@
 const { pool } = require('../config/config');
+const logger = require('./logger').child({ module: 'stats-helper' });
 
 /**
  * 获取表的记录总数
@@ -13,7 +14,7 @@ async function getTableCount(table, whereClause = '', params = []) {
     const [result] = await pool.execute(query, params);
     return result[0].count;
   } catch (error) {
-    console.error(`获取${table}表记录数失败:`, error);
+    logger.error('Get table count failed', { error, table });
     throw error;
   }
 }
@@ -35,7 +36,7 @@ async function getMultipleTableStats(tables) {
     
     return results;
   } catch (error) {
-    console.error('获取多表统计信息失败:', error);
+    logger.error('Get multiple table stats failed', { error });
     throw error;
   }
 }
@@ -81,7 +82,7 @@ async function getPaginatedData(table, options = {}) {
       totalPages: Math.ceil(total / limit)
     };
   } catch (error) {
-    console.error('获取分页数据失败:', error);
+    logger.error('Get paginated data failed', { error, table });
     throw error;
   }
 }

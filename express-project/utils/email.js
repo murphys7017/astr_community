@@ -10,6 +10,7 @@
 
 const nodemailer = require('nodemailer');
 const { email } = require('../config/config');
+const logger = require('./logger').child({ module: 'email' });
 
 // 创建SMTP传输器
 const transporter = nodemailer.createTransport({
@@ -34,10 +35,10 @@ async function sendMail(mailOptions) {
 
     // 发送邮件
     const info = await transporter.sendMail(options);
-    console.log('邮件发送成功:', info.messageId);
+    logger.info('Email sent', { messageId: info.messageId, to: mailOptions.to || null, subject: mailOptions.subject || null });
     return info;
   } catch (error) {
-    console.error('邮件发送失败:', error);
+    logger.error('Send email failed', { error, to: mailOptions.to || null, subject: mailOptions.subject || null });
     throw error;
   }
 }

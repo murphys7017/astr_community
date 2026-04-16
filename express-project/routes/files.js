@@ -3,6 +3,7 @@ const router = express.Router();
 const fs = require('fs');
 const { validateImageFile, validateVideoFile } = require('../utils/fileHelpers');
 const { HTTP_STATUS, RESPONSE_CODES } = require('../constants');
+const logger = require('../utils/logger').child({ module: 'files' });
 
 router.get('/images/:filename', async (req, res) => {
   try {
@@ -24,7 +25,7 @@ router.get('/images/:filename', async (req, res) => {
     fileStream.pipe(res);
 
     fileStream.on('error', (err) => {
-      console.error('文件读取错误:', err);
+      logger.error('Read image file failed', { error: err, filename });
       if (!res.headersSent) {
         res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
           code: RESPONSE_CODES.ERROR,
@@ -44,7 +45,7 @@ router.get('/images/:filename', async (req, res) => {
       fileStream.destroy();
     });
   } catch (error) {
-    console.error('图片访问错误:', error);
+    logger.error('Serve image failed', { error, filename: req.params.filename || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       code: RESPONSE_CODES.ERROR,
       message: '服务器错误'
@@ -72,7 +73,7 @@ router.get('/videos/:filename', async (req, res) => {
     fileStream.pipe(res);
 
     fileStream.on('error', (err) => {
-      console.error('文件读取错误:', err);
+      logger.error('Read video file failed', { error: err, filename });
       if (!res.headersSent) {
         res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
           code: RESPONSE_CODES.ERROR,
@@ -92,7 +93,7 @@ router.get('/videos/:filename', async (req, res) => {
       fileStream.destroy();
     });
   } catch (error) {
-    console.error('视频访问错误:', error);
+    logger.error('Serve video failed', { error, filename: req.params.filename || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       code: RESPONSE_CODES.ERROR,
       message: '服务器错误'

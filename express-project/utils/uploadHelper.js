@@ -6,6 +6,7 @@ const { HTTP_STATUS, RESPONSE_CODES } = require('../constants');
 const config = require('../config/config');
 const crypto = require('crypto');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+const logger = require('./logger').child({ module: 'upload-helper' });
 
 /**
  * 保存图片文件到本地
@@ -57,7 +58,7 @@ async function saveImageToLocal(fileBuffer, filename, mimetype) {
       url: url
     };
   } catch (error) {
-    console.error('❌ 图片本地保存失败:', error.message);
+    logger.error('Save image to local failed', { error: error.message, filename, mimetype });
     return {
       success: false,
       message: error.message || '图片本地保存失败'
@@ -117,7 +118,7 @@ async function saveVideoToLocal(fileBuffer, filename, mimetype) {
       filePath: filePath
     };
   } catch (error) {
-    console.error('❌ 视频本地保存失败:', error.message);
+    logger.error('Save video to local failed', { error: error.message, filename, mimetype });
     return {
       success: false,
       message: error.message || '视频本地保存失败'
@@ -136,7 +137,7 @@ async function uploadToImageHost(fileBuffer, filename, mimetype) {
   try {
     // 检查配置是否存在
     if (!config.upload || !config.upload.image || !config.upload.image.imagehost || !config.upload.image.imagehost.apiUrl) {
-      console.error('❌ 图床配置不完整:', config.upload?.image?.imagehost);
+      logger.error('Image host config incomplete', { config: config.upload?.image?.imagehost || null });
       return {
         success: false,
         message: '图床配置不完整，缺少apiUrl'
@@ -191,7 +192,7 @@ async function uploadToImageHost(fileBuffer, filename, mimetype) {
     });
 
     // 打印响应数据，以便调试
-    console.log('图床响应数据:', response.data);
+    logger.debug('Image host response received', { data: response.data });
 
     // 检查响应格式，适配不同图床API的返回格式
     if (response.data && (response.data.errno === 0 || response.data.success === true || response.data.code === 200 || response.data.ok === true)) {
@@ -216,13 +217,13 @@ async function uploadToImageHost(fileBuffer, filename, mimetype) {
       }
     }
 
-    console.log('❌ 图床返回错误:', response.data);
+    logger.warn('Image host returned failure payload', { data: response.data });
     return {
       success: false,
       message: response.data.message || response.data.error || '图床上传失败'
     };
   } catch (error) {
-    console.error('❌ 图床上传失败:', error.message);
+    logger.error('Upload to image host failed', { error: error.message, filename, mimetype });
     return {
       success: false,
       message: error.message || '图床上传失败'
@@ -309,7 +310,7 @@ async function uploadImageToR2(fileBuffer, filename, mimetype) {
       url: fileUrl
     };
   } catch (error) {
-    console.error('Cloudflare R2 图片上传失败:', error.message);
+    logger.error('Upload image to R2 failed', { error: error.message, filename, mimetype });
     return {
       success: false,
       message: error.message || 'Cloudflare R2 图片上传失败'
@@ -396,7 +397,7 @@ async function uploadVideoToR2(fileBuffer, filename, mimetype) {
       url: fileUrl
     };
   } catch (error) {
-    console.error('Cloudflare R2 视频上传失败:', error.message);
+    logger.error('Upload video to R2 failed', { error: error.message, filename, mimetype });
     return {
       success: false,
       message: error.message || 'Cloudflare R2 视频上传失败'
@@ -427,7 +428,7 @@ async function uploadFileToImageHost(filePath, originalname, mimetype, deleteAft
 
     return result;
   } catch (error) {
-    console.error('❌ 图片上传失败:', error.message);
+    logger.error('Upload file to image host failed', { error: error.message, filePath, originalname, mimetype });
     // 确保删除临时文件
     if (deleteAfterUpload && fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);

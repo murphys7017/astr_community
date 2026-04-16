@@ -3,6 +3,7 @@ const router = express.Router();
 const { HTTP_STATUS, RESPONSE_CODES, ERROR_MESSAGES } = require('../constants');
 const { pool } = require('../config/config');
 const { authenticateToken } = require('../middleware/auth');
+const logger = require('../utils/logger').child({ module: 'notifications' });
 
 // 获取评论通知
 router.get('/comments', authenticateToken, async (req, res) => {
@@ -24,7 +25,7 @@ router.get('/comments', authenticateToken, async (req, res) => {
              p.user_id as post_author_id,
              CASE 
                WHEN p.type = 2 THEN (SELECT pv.cover_url FROM post_videos pv WHERE pv.post_id = p.id ORDER BY pv.id LIMIT 1)
-               ELSE (SELECT pi.image_url FROM post_images pi WHERE pi.post_id = p.id ORDER BY pi.id LIMIT 1)
+               ELSE COALESCE(p.cover_url, (SELECT pi.image_url FROM post_images pi WHERE pi.post_id = p.id ORDER BY pi.id LIMIT 1))
              END as post_image,
              c.content as comment_content,
              c.created_at as comment_created_at,
@@ -71,7 +72,7 @@ router.get('/comments', authenticateToken, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('获取评论通知失败:', error);
+    logger.error('Get comment notifications failed', { error, userId: req.user?.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -96,7 +97,7 @@ router.get('/likes', authenticateToken, async (req, res) => {
              p.user_id as post_author_id,
              CASE 
                WHEN p.type = 2 THEN (SELECT pv.cover_url FROM post_videos pv WHERE pv.post_id = p.id ORDER BY pv.id LIMIT 1)
-               ELSE (SELECT pi.image_url FROM post_images pi WHERE pi.post_id = p.id ORDER BY pi.id LIMIT 1)
+               ELSE COALESCE(p.cover_url, (SELECT pi.image_url FROM post_images pi WHERE pi.post_id = p.id ORDER BY pi.id LIMIT 1))
              END as post_image,
              CASE 
                WHEN n.type = 1 THEN 1
@@ -137,7 +138,7 @@ router.get('/likes', authenticateToken, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('获取点赞通知失败:', error);
+    logger.error('Get like notifications failed', { error, userId: req.user?.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -186,7 +187,7 @@ router.get('/follows', authenticateToken, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('获取关注通知失败:', error);
+    logger.error('Get follow notifications failed', { error, userId: req.user?.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -210,7 +211,7 @@ router.get('/collections', authenticateToken, async (req, res) => {
              p.type as post_type,
              CASE 
                WHEN p.type = 2 THEN (SELECT pv.cover_url FROM post_videos pv WHERE pv.post_id = p.id ORDER BY pv.id LIMIT 1)
-               ELSE (SELECT pi.image_url FROM post_images pi WHERE pi.post_id = p.id ORDER BY pi.id LIMIT 1)
+               ELSE COALESCE(p.cover_url, (SELECT pi.image_url FROM post_images pi WHERE pi.post_id = p.id ORDER BY pi.id LIMIT 1))
              END as post_image
       FROM notifications n
       LEFT JOIN users u ON n.sender_id = u.id
@@ -242,7 +243,7 @@ router.get('/collections', authenticateToken, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('获取收藏通知失败:', error);
+    logger.error('Get collection notifications failed', { error, userId: req.user?.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -312,7 +313,7 @@ router.get('/', authenticateToken, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('获取通知列表失败:', error);
+    logger.error('Get notifications failed', { error, userId: req.user?.id || null, type: req.query.type || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -341,7 +342,7 @@ router.put('/:id/read', authenticateToken, async (req, res) => {
 
     res.json({ code: RESPONSE_CODES.SUCCESS, message: '标记成功' });
   } catch (error) {
-    console.error('标记通知已读失败:', error);
+    logger.error('Mark notification read failed', { error, userId: req.user?.id || null, notificationId: req.params.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -360,7 +361,7 @@ router.put('/read-all', authenticateToken, async (req, res) => {
 
     res.json({ code: RESPONSE_CODES.SUCCESS, message: '全部标记成功' });
   } catch (error) {
-    console.error('标记所有通知已读失败:', error);
+    logger.error('Mark all notifications read failed', { error, userId: req.user?.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -383,7 +384,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 
     res.json({ code: RESPONSE_CODES.SUCCESS, message: '删除成功' });
   } catch (error) {
-    console.error('删除通知失败:', error);
+    logger.error('Delete notification failed', { error, userId: req.user?.id || null, notificationId: req.params.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -419,7 +420,7 @@ router.get('/unread-count-by-type', authenticateToken, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('获取按类型分组的未读通知数量失败:', error);
+    logger.error('Get unread counts by type failed', { error, userId: req.user?.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -440,7 +441,7 @@ router.get('/unread-count', authenticateToken, async (req, res) => {
       data: { count: result[0].count }
     });
   } catch (error) {
-    console.error('获取未读通知数量失败:', error);
+    logger.error('Get unread notification count failed', { error, userId: req.user?.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });

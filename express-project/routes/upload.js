@@ -6,6 +6,7 @@ const { authenticateToken } = require('../middleware/auth');
 const { uploadFile, uploadVideo } = require('../utils/uploadHelper');
 const { parseSize } = require('../utils/fileHelpers');
 const config = require('../config/config');
+const logger = require('../utils/logger').child({ module: 'upload' });
 
 const UPLOAD_DISABLED_MESSAGE = '平台当前已关闭文件上传，请改用外链内容';
 
@@ -114,7 +115,7 @@ router.use((error, req, res, next) => {
     return res.status(HTTP_STATUS.BAD_REQUEST).json({ code: RESPONSE_CODES.VALIDATION_ERROR, message: error.message });
   }
 
-  console.error('文件上传错误:', error);
+  logger.error('File upload failed', { error, userId: req.user?.id || null });
   res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: '文件上传失败' });
 });
 

@@ -3,6 +3,8 @@ const router = express.Router();
 const { HTTP_STATUS, RESPONSE_CODES, ERROR_MESSAGES } = require('../constants');
 const { pool } = require('../config/config');
 const { optionalAuth } = require('../middleware/auth');
+const { pickTextPostCoverUrl } = require('../utils/postCover');
+const logger = require('../utils/logger').child({ module: 'search' });
 
 // 搜索（通用搜索接口）
 router.get('/', optionalAuth, async (req, res) => {
@@ -115,7 +117,7 @@ router.get('/', optionalAuth, async (req, res) => {
           const [images] = await pool.execute('SELECT image_url FROM post_images WHERE post_id = ?', [post.id.toString()]);
           post.images = images.map(img => img.image_url);
           // 为瀑布流设置image字段（取第一张图片）
-          post.image = images.length > 0 ? images[0].image_url : null;
+          post.image = pickTextPostCoverUrl(post.cover_url, post.images);
         }
 
         // 获取笔记标签
@@ -287,7 +289,7 @@ router.get('/', optionalAuth, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('搜索失败:', error);
+    logger.error('Search failed', { error, keyword: req.query.keyword || null, type: req.query.type || null, tag: req.query.tag || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });

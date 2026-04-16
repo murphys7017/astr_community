@@ -13,13 +13,15 @@ const {
 const { extractMentionedUsers, hasMentions } = require('../utils/mentionParser')
 const NotificationHelper = require('../utils/notificationHelper')
 const { sanitizeContent } = require('../utils/contentSecurity')
+const { parseExternalCoverUrl, pickTextPostCoverUrl } = require('../utils/postCover')
+const logger = require('../utils/logger').child({ module: 'admin' })
 
 const BLOCKED_MEDIA_TAG_REGEX = /<(img|video|audio|iframe)\b/i
 
 const hasEmbeddedMediaMarkup = (content = '') => BLOCKED_MEDIA_TAG_REGEX.test(content)
 
 const hasUploadedMediaPayload = (payload = {}) => {
-  const { images, image_urls, video_upload, video, video_url, cover_url, type } = payload
+  const { images, image_urls, video_upload, video, video_url, type } = payload
   const hasImages = [images, image_urls].some(list =>
     Array.isArray(list) && list.some(item => {
       if (typeof item === 'string') return item.trim()
@@ -29,7 +31,7 @@ const hasUploadedMediaPayload = (payload = {}) => {
   const hasVideoObject = [video_upload, video].some(item =>
     item && typeof item === 'object' && Object.values(item).some(value => typeof value === 'string' ? value.trim() : Boolean(value))
   )
-  const hasVideoString = [video_url, cover_url].some(value => typeof value === 'string' && value.trim())
+  const hasVideoString = [video_url].some(value => typeof value === 'string' && value.trim())
   const isVideoType = Number(type) === 2
 
   return hasImages || hasVideoObject || hasVideoString || isVideoType
@@ -41,7 +43,7 @@ const postsCrudConfig = {
   table: 'posts',
   name: '笔记',
   requiredFields: ['user_id', 'title', 'content'],
-  updateFields: ['title', 'content', 'category_id', 'view_count', 'status'],
+  updateFields: ['title', 'content', 'cover_url', 'category_id', 'view_count', 'status'],
   cascadeRules: [
     { table: 'post_images', field: 'post_id' },
     { table: 'post_tags', field: 'post_id' },
@@ -84,6 +86,13 @@ const postsCrudConfig = {
       return { isValid: false, message: '帖子内容暂不支持嵌入图片或媒体标签，请改用外链' }
     }
 
+    const normalizedCoverUrl = parseExternalCoverUrl(cover_url)
+    if (!normalizedCoverUrl.valid) {
+      return { isValid: false, message: '封面链接格式不正确，请使用 http/https 链接' }
+    }
+
+    data.cover_url = normalizedCoverUrl.value
+
     data.type = 1
 
     // 确保分类ID存在
@@ -103,7 +112,6 @@ const postsCrudConfig = {
     delete data.video_upload
     delete data.video
     delete data.video_url
-    delete data.cover_url
 
     return { isValid: true }
   },
@@ -191,6 +199,14 @@ const postsCrudConfig = {
       if (hasEmbeddedMediaMarkup(data.content)) {
         return { isValid: false, message: '帖子内容暂不支持嵌入图片或媒体标签，请改用外链' }
       }
+    }
+
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, 'cover_url')) {
+      const normalizedCoverUrl = parseExternalCoverUrl(req.body.cover_url)
+      if (!normalizedCoverUrl.valid) {
+        return { isValid: false, message: '封面链接格式不正确，请使用 http/https 链接' }
+      }
+      data.cover_url = normalizedCoverUrl.value
     }
 
     if (hasUploadedMediaPayload(req.body || {})) {
@@ -327,7 +343,7 @@ const postsCrudConfig = {
 
       // 获取笔记基本信息
       const [postResult] = await pool.execute(`
-        SELECT p.id, p.user_id, p.title, p.content, p.type, p.category_id, c.name as category,
+        SELECT p.id, p.user_id, p.title, p.content, p.cover_url, p.type, p.category_id, c.name as category,
                p.view_count, p.like_count, p.collect_count, p.comment_count,
                p.status, p.created_at,
                u.nickname, COALESCE(u.user_id, CONCAT('user', LPAD(u.id, 3, '0'))) as user_display_id
@@ -358,6 +374,7 @@ const postsCrudConfig = {
         // 图文笔记：获取图片信息
         const [images] = await pool.execute('SELECT image_url FROM post_images WHERE post_id = ?', [String(postId)])
         post.images = images.map(img => img.image_url)
+        post.image = pickTextPostCoverUrl(post.cover_url, post.images)
       }
 
       // 获取笔记标签
@@ -444,7 +461,7 @@ const postsCrudConfig = {
 
       // 获取数据
       const dataQuery = `
-        SELECT p.id, p.user_id, p.title, p.content, p.type, p.category_id, c.name as category,
+        SELECT p.id, p.user_id, p.title, p.content, p.cover_url, p.type, p.category_id, c.name as category,
                p.view_count, p.like_count, p.collect_count, p.comment_count,
                p.status, p.created_at,
                u.nickname, COALESCE(u.user_id, CONCAT('user', LPAD(u.id, 3, '0'))) as user_display_id
@@ -461,6 +478,7 @@ const postsCrudConfig = {
       for (let post of posts) {
         const [images] = await pool.execute('SELECT image_url FROM post_images WHERE post_id = ?', [String(post.id)])
         post.images = images.map(img => img.image_url)
+        post.image = pickTextPostCoverUrl(post.cover_url, post.images)
 
         // 获取笔记标签
         const [tags] = await pool.execute(`
@@ -553,7 +571,7 @@ router.get('/posts-audit', adminAuth, async (req, res) => {
 
     // 获取数据
     const dataQuery = `
-      SELECT p.id, p.user_id, p.title, p.content, p.type, p.category_id, c.name as category,
+      SELECT p.id, p.user_id, p.title, p.content, p.cover_url, p.type, p.category_id, c.name as category,
              p.view_count, p.like_count, p.collect_count, p.comment_count,
              p.status, p.created_at,
              u.nickname, COALESCE(u.user_id, CONCAT('user', LPAD(u.id, 3, '0'))) as user_display_id
@@ -570,6 +588,7 @@ router.get('/posts-audit', adminAuth, async (req, res) => {
     for (let post of posts) {
       const [images] = await pool.execute('SELECT image_url FROM post_images WHERE post_id = ?', [String(post.id)])
       post.images = images.map(img => img.image_url)
+      post.image = pickTextPostCoverUrl(post.cover_url, post.images)
 
       // 获取笔记标签
       const [tags] = await pool.execute(`
@@ -595,7 +614,7 @@ router.get('/posts-audit', adminAuth, async (req, res) => {
       }
     })
   } catch (error) {
-    console.error('获取待审核笔记列表失败:', error)
+    logger.error('Get pending post audits failed', { error })
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       code: RESPONSE_CODES.ERROR,
       message: '获取待审核笔记列表失败'
@@ -652,7 +671,7 @@ router.put('/posts-audit/:id/approve', adminAuth, async (req, res) => {
               }
             }
           } catch (error) {
-            console.error('处理@用户通知失败 - 用户: %s:', mentionedUser.userId, error)
+            logger.error('Process mentioned user notification failed', { error, mentionedUserId: mentionedUser.userId })
           }
         }
       }
@@ -669,7 +688,7 @@ router.put('/posts-audit/:id/approve', adminAuth, async (req, res) => {
       message: '审核通过成功'
     })
   } catch (error) {
-    console.error('审核通过失败:', error)
+    logger.error('Approve content failed', { error })
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       code: RESPONSE_CODES.ERROR,
       message: '审核通过失败'
@@ -706,7 +725,7 @@ router.put('/posts-audit/:id/reject', adminAuth, async (req, res) => {
       message: '拒绝发布成功'
     })
   } catch (error) {
-    console.error('拒绝发布失败:', error)
+    logger.error('Reject content failed', { error })
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       code: RESPONSE_CODES.ERROR,
       message: '拒绝发布失败'
@@ -737,7 +756,7 @@ router.get('/posts/:id', adminAuth, async (req, res) => {
       data: result
     })
   } catch (error) {
-    console.error('获取笔记详情失败:', error)
+    logger.error('Get admin post detail failed', { error })
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       code: RESPONSE_CODES.ERROR,
       message: '获取笔记详情失败'
@@ -754,7 +773,7 @@ router.get('/posts', adminAuth, async (req, res) => {
       data: result
     })
   } catch (error) {
-    console.error('获取笔记列表失败:', error)
+    logger.error('Get admin posts failed', { error })
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       code: RESPONSE_CODES.ERROR,
       message: '获取笔记列表失败'
@@ -909,7 +928,7 @@ router.get('/comments', adminAuth, async (req, res) => {
       data: result
     })
   } catch (error) {
-    console.error('获取评论列表失败:', error)
+    logger.error('Get admin comments failed', { error })
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       code: RESPONSE_CODES.ERROR,
       message: '获取评论列表失败'
@@ -1071,7 +1090,7 @@ router.get('/test-users', adminAuth, async (req, res) => {
     )
     res.json({ code: RESPONSE_CODES.SUCCESS, data: users })
   } catch (error) {
-    console.error('测试用户数据失败:', error)
+    logger.error('Test user data failed', { error })
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: '服务器错误' })
   }
 })
@@ -1092,7 +1111,7 @@ router.get('/likes', adminAuth, async (req, res) => {
       data: result
     })
   } catch (error) {
-    console.error('获取点赞列表失败:', error)
+    logger.error('Get admin likes failed', { error })
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       code: RESPONSE_CODES.ERROR,
       message: '获取点赞列表失败'
@@ -1255,7 +1274,7 @@ router.get('/collections', adminAuth, async (req, res) => {
       data: result
     })
   } catch (error) {
-    console.error('获取收藏列表失败:', error)
+    logger.error('Get admin collections failed', { error })
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       code: RESPONSE_CODES.ERROR,
       message: '获取收藏列表失败'
@@ -1446,7 +1465,7 @@ router.get('/follows', adminAuth, async (req, res) => {
       data: result
     })
   } catch (error) {
-    console.error('获取关注列表失败:', error)
+    logger.error('Get admin follows failed', { error })
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       code: RESPONSE_CODES.ERROR,
       message: '获取关注列表失败'
@@ -1561,7 +1580,7 @@ router.get('/notifications', adminAuth, async (req, res) => {
       data: result
     })
   } catch (error) {
-    console.error('获取通知列表失败:', error)
+    logger.error('Get admin notifications failed', { error })
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       code: RESPONSE_CODES.ERROR,
       message: '获取通知列表失败'
@@ -1691,7 +1710,7 @@ router.get('/sessions', adminAuth, async (req, res) => {
       data: result
     })
   } catch (error) {
-    console.error('获取会话列表失败:', error)
+    logger.error('Get user sessions failed', { error })
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       code: RESPONSE_CODES.ERROR,
       message: '获取会话列表失败'
@@ -1799,7 +1818,7 @@ router.get('/admin-sessions', adminAuth, async (req, res) => {
       data: result
     })
   } catch (error) {
-    console.error('获取管理员会话列表失败:', error)
+    logger.error('Get admin sessions failed', { error })
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       code: RESPONSE_CODES.ERROR,
       message: '获取管理员会话列表失败'
@@ -2089,7 +2108,7 @@ router.get('/users/:id', adminAuth, async (req, res) => {
       data: result
     })
   } catch (error) {
-    console.error('获取用户详情失败:', error)
+    logger.error('Get admin user detail failed', { error })
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       code: RESPONSE_CODES.ERROR,
       message: '获取用户详情失败'
@@ -2105,7 +2124,7 @@ router.get('/users', adminAuth, async (req, res) => {
       data: result
     })
   } catch (error) {
-    console.error('获取用户列表失败:', error)
+    logger.error('Get admin users failed', { error })
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       code: RESPONSE_CODES.ERROR,
       message: '获取用户列表失败'
@@ -2120,9 +2139,9 @@ async function updateUserActiveStatus(userId, active, operatorId) {
       'UPDATE users SET is_active = ? WHERE id = ?',
       [active ? 1 : 0, String(userId)]
     )
-    console.log(`用户 ${userId} 的is_active状态已更新为 ${active ? 1 : 0}，操作人：${operatorId}`)
+    logger.info('User active status updated', { userId, active: active ? 1 : 0, operatorId })
   } catch (error) {
-    console.error('更新用户is_active状态失败:', error)
+    logger.error('Update user active status failed', { error, userId, operatorId })
     throw error
   }
 }
@@ -2146,7 +2165,7 @@ async function revokeExistingBans(userId, operatorId) {
       )
       await Promise.all(updatePromises)
 
-      console.log(`用户 ${userId} 的 ${existingBan.length} 条现有封禁记录已被撤销，操作人：${operatorId}`)
+      logger.info('Existing user bans revoked', { userId, revokedCount: existingBan.length, operatorId })
 
       // 恢复用户的is_active为1
       await updateUserActiveStatus(userId, true, operatorId)
@@ -2154,7 +2173,7 @@ async function revokeExistingBans(userId, operatorId) {
 
     return existingBan.length > 0
   } catch (error) {
-    console.error('撤销现有封禁记录失败:', error)
+    logger.error('Revoke existing user bans failed', { error, userId, operatorId })
     throw error
   }
 }
@@ -2166,7 +2185,7 @@ router.post('/users/:id/ban', adminAuth, async (req, res) => {
     const { reason, end_time } = req.body
     const adminId = req.user?.id || 0
 
-    console.log(`开始封禁用户 ${userId}，操作人：${adminId}`)
+    logger.info('User ban requested', { userId, adminId })
 
     // 检查用户是否存在
     const [userResult] = await pool.execute('SELECT id FROM users WHERE id = ?', [String(userId)])
@@ -2226,7 +2245,7 @@ router.post('/users/:id/ban', adminAuth, async (req, res) => {
       [String(data.user_id), data.reason, data.end_time, data.status, String(data.operator)]
     )
 
-    console.log(`用户 ${userId} 封禁记录已创建`)
+    logger.info('User ban record created', { userId })
 
     // 更新用户的is_active为0（限制登录）
     await updateUserActiveStatus(userId, false, adminId)
@@ -2236,7 +2255,7 @@ router.post('/users/:id/ban', adminAuth, async (req, res) => {
       message: '用户封禁成功'
     })
   } catch (error) {
-    console.error('封禁用户失败:', error)
+    logger.error('Ban user failed', { error, userId, adminId: adminId || null })
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       code: RESPONSE_CODES.ERROR,
       message: '封禁用户失败'
@@ -2266,7 +2285,7 @@ async function unbanUser(userId, operatorId) {
     )
     await Promise.all(updatePromises)
 
-    console.log(`用户 ${userId} 的 ${banResult.length} 条封禁记录已被解封，操作人：${operatorId}`)
+    logger.info('User bans lifted', { userId, unbanCount: banResult.length, operatorId })
 
     // 恢复用户的is_active为1
     await updateUserActiveStatus(userId, true, operatorId)
@@ -2275,7 +2294,7 @@ async function unbanUser(userId, operatorId) {
       banCount: banResult.length
     }
   } catch (error) {
-    console.error('解封用户失败:', error)
+    logger.error('Lift user bans failed', { error, userId, operatorId })
     throw error
   }
 }
@@ -2286,7 +2305,7 @@ router.post('/users/:id/unban', adminAuth, async (req, res) => {
     const userId = req.params.id
     const adminId = req.user?.id || 0
 
-    console.log(`开始解封用户 ${userId}，操作人：${adminId}`)
+    logger.info('User unban requested', { userId, adminId })
 
     // 检查用户是否存在
     const [userResult] = await pool.execute('SELECT id FROM users WHERE id = ?', [String(userId)])
@@ -2311,7 +2330,7 @@ router.post('/users/:id/unban', adminAuth, async (req, res) => {
         message: error.message
       })
     }
-    console.error('解封用户失败:', error)
+    logger.error('Unban user failed', { error, userId, adminId: adminId || null })
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       code: RESPONSE_CODES.ERROR,
       message: '解封用户失败'
@@ -2453,7 +2472,7 @@ router.get('/monitor/activities', adminAuth, async (req, res) => {
       data: activities
     })
   } catch (error) {
-    console.error('获取监控动态失败:', error)
+    logger.error('Get admin dashboard activity failed', { error })
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       code: RESPONSE_CODES.ERROR,
       message: '获取动态失败',
@@ -2621,7 +2640,7 @@ router.get('/audit/:id', adminAuth, async (req, res) => {
       data: result
     })
   } catch (error) {
-    console.error('获取认证记录失败:', error)
+    logger.error('Get verification records failed', { error })
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       code: RESPONSE_CODES.ERROR,
       message: '获取认证记录失败',
@@ -2639,7 +2658,7 @@ router.get('/audit', adminAuth, async (req, res) => {
       data: result
     })
   } catch (error) {
-    console.error('获取认证列表失败:', error)
+    logger.error('Get verification list failed', { error })
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       code: RESPONSE_CODES.ERROR,
       message: '获取认证列表失败',
@@ -2697,7 +2716,7 @@ router.put('/audit/:id/approve', adminAuth, async (req, res) => {
       throw error
     }
   } catch (error) {
-    console.error('审核通过失败:', error)
+    logger.error('Approve verification failed', { error })
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       code: RESPONSE_CODES.ERROR,
       message: '审核通过失败',
@@ -2753,7 +2772,7 @@ router.put('/audit/:id/reject', adminAuth, async (req, res) => {
       throw error
     }
   } catch (error) {
-    console.error('拒绝申请失败:', error)
+    logger.error('Reject verification failed', { error })
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       code: RESPONSE_CODES.ERROR,
       message: '拒绝申请失败',
@@ -3030,7 +3049,7 @@ router.get('/categories', adminAuth, async (req, res) => {
       ...result
     })
   } catch (err) {
-    console.error('获取分类列表失败:', err)
+    logger.error('Get admin categories failed', { error: err })
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       code: RESPONSE_CODES.SERVER_ERROR,
       message: err.message || '获取分类列表失败'

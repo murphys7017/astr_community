@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const config = require('../config/config');
+const logger = require('./logger').child({ module: 'file-cleanup' });
 
 /**
  * 从URL中提取本地文件路径
@@ -26,7 +27,7 @@ function extractLocalFilePath(url) {
     
     return null;
   } catch (error) {
-    console.error(`❌ 提取文件路径失败: ${url}`, error.message);
+    logger.error('Extract local file path failed', { error: error.message, url });
     return null;
   }
 }
@@ -39,7 +40,7 @@ function extractLocalFilePath(url) {
 async function deleteLocalFile(filePath) {
   try {
     if (!filePath || typeof filePath !== 'string') {
-      console.warn('⚠️ 无效的文件路径');
+      logger.warn('Invalid file path for cleanup', { filePath: filePath || null });
       return false;
     }
 
@@ -47,7 +48,7 @@ async function deleteLocalFile(filePath) {
     const projectRoot = process.cwd();
     const resolvedPath = path.resolve(filePath);
     if (!resolvedPath.startsWith(projectRoot)) {
-      console.error(`❌ 安全检查失败，文件路径超出项目范围: ${filePath}`);
+      logger.error('File cleanup safety check failed', { filePath, projectRoot });
       return false;
     }
 
@@ -58,7 +59,7 @@ async function deleteLocalFile(filePath) {
       return true; // 文件不存在也算成功
     }
   } catch (error) {
-    console.error(`❌ 删除视频文件失败: ${filePath}`, error.message);
+    logger.error('Delete local file failed', { error: error.message, filePath });
     return false;
   }
 }
@@ -92,12 +93,12 @@ async function cleanupVideoFiles(videoUrls) {
         }
       } else {
         // 云端文件或其他类型的URL，跳过处理
-        console.log(`⏭️ 跳过非本地文件: ${url}`);
+        logger.debug('Skip non-local video file cleanup', { url });
       }
     } catch (error) {
       failedCount++;
       errors.push(`处理文件时出错 ${url}: ${error.message}`);
-      console.error(`❌ 处理视频文件时出错: ${url}`, error.message);
+      logger.error('Cleanup video file failed', { error: error.message, url });
     }
   }
 
@@ -149,7 +150,7 @@ async function cleanupCoverFiles(coverUrls) {
     } catch (error) {
       failedCount++;
       errors.push(`处理封面文件时出错 ${url}: ${error.message}`);
-      console.error(`❌ 处理封面文件时出错: ${url}`, error.message);
+      logger.error('Cleanup cover file failed', { error: error.message, url });
     }
   }
 
@@ -191,7 +192,7 @@ async function batchCleanupFiles(videoUrls = [], coverUrls = []) {
         allErrors: [...videoResult.errors, ...coverResult.errors]
     };
   } catch (error) {
-    console.error('❌ 批量文件清理失败:', error.message);
+    logger.error('Batch file cleanup failed', { error: error.message });
     return {
       success: false,
       videoResult: { success: false, deletedCount: 0, failedCount: 0, errors: [error.message] },

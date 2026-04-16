@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { success, error } = require('../utils/responseHelper');
 const { getMultipleTableStats } = require('../utils/statsHelper');
+const logger = require('../utils/logger').child({ module: 'stats' });
 
 // 获取系统统计信息
 router.get('/', async (req, res) => {
@@ -17,7 +18,7 @@ router.get('/', async (req, res) => {
     const stats = await getMultipleTableStats(tables);
     success(res, stats, '获取统计信息成功');
   } catch (err) {
-    console.error('获取统计信息失败:', err);
+    logger.error('Get stats failed', { error: err });
     error(res, '获取统计信息失败');
   }
 });
