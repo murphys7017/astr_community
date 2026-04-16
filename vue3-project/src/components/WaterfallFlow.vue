@@ -195,20 +195,22 @@ const createTextCardTheme = ({
     }
 
     return {
-        border: hexToRgba(line, 0.24),
-        topWash: hexToRgba(wash, 0.10),
-        accent: hexToRgba(accent, 0.16),
+        border: hexToRgba(line, 0.34),
+        topWash: hexToRgba(wash, 0.24),
+        accent: hexToRgba(accent, 0.26),
         accentPoint,
         secondaryPoint,
         tertiaryPoint,
-        secondaryWash: hexToRgba(wash, 0.13),
-        tertiaryWash: hexToRgba(glow, 0.08),
-        surface: 'linear-gradient(160deg, rgba(255, 255, 255, 0.995), rgba(255, 255, 255, 0.985))',
+        secondaryWash: hexToRgba(accent, 0.17),
+        tertiaryWash: hexToRgba(glow, 0.16),
+        surface: `linear-gradient(158deg, ${hexToRgba(wash, 0.68)} 0%, rgba(255, 255, 255, 0.99) 44%, ${hexToRgba(accent, 0.14)} 100%)`,
         pattern: patternMap[patternKind] || patternMap.lines,
-        glow: hexToRgba(glow, 0.12),
-        hoverShadow: `0 24px 42px -30px ${hexToRgba(glow, 0.24)}, 0 14px 24px -22px ${hexToRgba(glow, 0.14)}`,
-        titleColor: mixHexColors(ink, '#1f2428', 0.42),
-        previewColor: mixHexColors(ink, '#54616a', 0.52)
+        glow: hexToRgba(glow, 0.22),
+        accentBar: `linear-gradient(90deg, ${hexToRgba(accent, 0.84)} 0%, ${hexToRgba(wash, 0.42)} 100%)`,
+        accentEdge: hexToRgba(line, 0.42),
+        hoverShadow: `0 28px 52px -30px ${hexToRgba(glow, 0.30)}, 0 18px 30px -24px ${hexToRgba(line, 0.18)}`,
+        titleColor: mixHexColors(ink, '#1f2428', 0.28),
+        previewColor: mixHexColors(ink, '#54616a', 0.44)
     }
 }
 
@@ -289,11 +291,33 @@ const textCardThemes = [
         accentPoint: '82% 12%',
         secondaryPoint: '14% 88%',
         tertiaryPoint: '62% 68%'
+    }),
+    createTextCardTheme({
+        ink: '#CC4E4D',
+        wash: '#8BB994',
+        accent: '#7BA4C4',
+        line: '#7BA4C4',
+        glow: '#CC4E4D',
+        patternKind: 'grid',
+        accentPoint: '84% 16%',
+        secondaryPoint: '14% 84%',
+        tertiaryPoint: '56% 26%'
+    }),
+    createTextCardTheme({
+        ink: '#5B7423',
+        wash: '#DD9F23',
+        accent: '#81A9C3',
+        line: '#81A9C3',
+        glow: '#DD9F23',
+        patternKind: 'lines',
+        accentPoint: '88% 18%',
+        secondaryPoint: '18% 86%',
+        tertiaryPoint: '60% 22%'
     })
 ]
 
-const textCardHeightScales = [0.98, 1.06, 1.15, 1.24]
-const textCardHeightOffsets = [0, 12, 24, 38]
+const textCardHeightScales = [0.92, 1.02, 1.12, 1.24, 1.36]
+const textCardHeightOffsets = [0, 12, 26, 42, 60]
 
 const hashTextCardSeed = (value = '') => {
     let hash = 2166136261
@@ -353,6 +377,8 @@ const getTextCardStyle = (item) => {
         '--text-card-surface': variant.theme.surface,
         '--text-card-pattern': variant.theme.pattern,
         '--text-card-glow': variant.theme.glow,
+        '--text-card-accent-bar': variant.theme.accentBar,
+        '--text-card-accent-edge': variant.theme.accentEdge,
         '--text-card-hover-shadow': variant.theme.hoverShadow,
         '--text-card-accent-point': variant.theme.accentPoint,
         '--text-card-secondary-point': variant.theme.secondaryPoint,
@@ -1371,10 +1397,11 @@ function handleImageError(event) {
     min-height: var(--text-card-height, 248px);
     height: var(--text-card-height, 248px);
     aspect-ratio: auto;
-    padding: 18px 18px 20px;
-    border-radius: 18px;
+    padding: 20px 18px 22px;
+    border-radius: 22px;
     border: 1px solid var(--text-card-border, rgba(18, 142, 124, 0.12));
     background:
+        linear-gradient(138deg, rgba(255, 255, 255, 0.34) 0%, transparent 34%),
         radial-gradient(circle at var(--text-card-accent-point, 88% 16%), var(--text-card-accent, rgba(24, 185, 157, 0.10)), transparent 26%),
         radial-gradient(circle at var(--text-card-secondary-point, 18% 84%), var(--text-card-secondary-wash, rgba(24, 185, 157, 0.10)), transparent 28%),
         radial-gradient(circle at var(--text-card-tertiary-point, 50% 52%), var(--text-card-tertiary-wash, rgba(24, 185, 157, 0.06)), transparent 34%),
@@ -1388,7 +1415,7 @@ function handleImageError(event) {
     isolation: isolate;
     box-sizing: border-box;
     transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.18s ease, border-color 0.18s ease;
-    box-shadow: 0 14px 24px -28px rgba(17, 24, 28, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    box-shadow: 0 16px 30px -30px rgba(17, 24, 28, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.76);
 }
 
 .content-img--text::before {
@@ -1398,7 +1425,7 @@ function handleImageError(event) {
     background:
         linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, transparent 34%),
         var(--text-card-pattern, repeating-linear-gradient(0deg, rgba(24, 185, 157, 0.04), rgba(24, 185, 157, 0.04) 1px, transparent 1px, transparent 24px));
-    opacity: 0.28;
+    opacity: 0.42;
     pointer-events: none;
     z-index: -2;
 }
@@ -1406,11 +1433,11 @@ function handleImageError(event) {
 .content-img--text::after {
     content: '';
     position: absolute;
-    inset: auto -10% -38% 12%;
-    height: 72px;
+    inset: auto -12% -34% 10%;
+    height: 92px;
     background: radial-gradient(circle, var(--text-card-glow, rgba(24, 185, 157, 0.14)), transparent 72%);
-    filter: blur(18px);
-    opacity: 0.32;
+    filter: blur(24px);
+    opacity: 0.46;
     pointer-events: none;
     z-index: -1;
 }
@@ -1422,6 +1449,7 @@ function handleImageError(event) {
 }
 
 .text-card-main {
+    position: relative;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
@@ -1429,6 +1457,20 @@ function handleImageError(event) {
     flex: 1;
     width: 100%;
     min-width: 0;
+    padding-top: 18px;
+}
+
+.text-card-main::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 74px;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--text-card-accent-bar, linear-gradient(90deg, rgba(24, 185, 157, 0.78), rgba(24, 185, 157, 0.18)));
+    box-shadow: 0 10px 22px -16px var(--text-card-accent-edge, rgba(24, 185, 157, 0.38));
+    opacity: 0.92;
 }
 
 .text-card-title {
