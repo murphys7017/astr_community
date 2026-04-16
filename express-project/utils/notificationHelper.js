@@ -4,6 +4,7 @@
  */
 
 const crypto = require('crypto');
+const logger = require('./logger').child({ module: 'notification-helper' });
 
 class NotificationHelper {
   // 通知类型定义
@@ -271,7 +272,13 @@ class NotificationHelper {
   static async createAndInsertNotification(pool, params) {
     // 检查是否给自己发通知
     if (params.userId === params.senderId) {
-      console.log('⚠️ 不给自己发通知');
+      logger.debug('Skip self notification', {
+        userId: params.userId,
+        senderId: params.senderId,
+        type: params.type,
+        targetId: params.targetId || null,
+        commentId: params.commentId || null
+      });
       return null;
     }
 

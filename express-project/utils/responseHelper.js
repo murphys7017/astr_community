@@ -2,6 +2,7 @@
  * 通用响应处理工具
  */
 const { HTTP_STATUS, RESPONSE_CODES } = require('../constants')
+const logger = require('./logger').child({ module: 'response-helper' })
 
 /**
  * 成功响应
@@ -46,7 +47,7 @@ function error(res, message = '操作失败', code = RESPONSE_CODES.ERROR, httpS
  * @param {string} operation - 操作名称
  */
 function handleError(err, res, operation = '操作') {
-  console.error(`${operation}失败:`, err)
+  logger.error(`${operation} failed`, { error: err, operation })
 
   // 数据库约束错误
   if (err.code === 'ER_DUP_ENTRY') {

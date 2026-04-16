@@ -9,6 +9,12 @@ const express = require('express');
 const path = require('path');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
+const logger = require('./utils/logger');
+const { installConsoleBridge } = require('./utils/logger');
+const { createRequestLogger } = require('./middleware/requestLogger');
+
+installConsoleBridge();
+
 const config = require('./config/config');
 const { HTTP_STATUS, RESPONSE_CODES } = require('./constants');
 // 导入自动解封功能
@@ -28,8 +34,10 @@ const statsRoutes = require('./routes/stats');
 const adminRoutes = require('./routes/admin');
 const categoriesRoutes = require('./routes/categories');
 const filesRoutes = require('./routes/files');
+const { runSchemaMigrations } = require('./utils/schemaMigrations');
 
 const app = express();
+const appLogger = logger.child({ module: 'app' });
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -63,6 +71,7 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));  // 显式处理OPTIONS请求
+app.use(createRequestLogger());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
@@ -96,7 +105,13 @@ app.use('/api/files', filesRoutes);
 
 // 错误处理中间件
 app.use((err, req, res, next) => {
-  console.error('服务器错误:', err);
+  appLogger.error('Unhandled request error', {
+    error: err,
+    method: req.method,
+    path: req.originalUrl || req.url,
+    requestId: req.id,
+    userId: req.user?.id || null
+  });
   res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: '服务器内部错误' });
 });
 
@@ -105,14 +120,37 @@ app.use('*', (req, res) => {
   res.status(HTTP_STATUS.NOT_FOUND).json({ code: RESPONSE_CODES.NOT_FOUND, message: '接口不存在' });
 });
 
-// 启动自动解封服务
-startAutoUnbanService();
+async function startServer() {
+  try {
+    await runSchemaMigrations();
 
-// 启动服务器
-const PORT = config.server.port;
-app.listen(PORT, () => {
-  console.log(`● 服务器运行在端口 ${PORT}`);
-  console.log(`● 环境: ${config.server.env}`);
+    // 启动自动解封服务
+    startAutoUnbanService();
+
+    // 启动服务器
+    const PORT = config.server.port;
+    app.listen(PORT, () => {
+      appLogger.info('Server started', {
+        port: Number(PORT),
+        env: config.server.env,
+        logLevel: config.logging.level,
+        logFormat: config.logging.format
+      });
+    });
+  } catch (error) {
+    appLogger.fatal('Server startup failed', { error });
+    process.exit(1);
+  }
+}
+
+process.on('unhandledRejection', reason => {
+  appLogger.error('Unhandled promise rejection', { reason });
 });
+
+process.on('uncaughtException', error => {
+  appLogger.fatal('Uncaught exception', { error });
+});
+
+startServer();
 
 module.exports = app;

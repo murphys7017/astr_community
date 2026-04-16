@@ -4,6 +4,7 @@
  */
 
 const { pool } = require('../config/config');
+const logger = require('./logger').child({ module: 'auto-unban' });
 
 /**
  * 自动解封过期用户
@@ -37,10 +38,13 @@ const autoUnbanUsers = async () => {
         userIds
       );
       
-      console.log(`● 自动解封 ${banResult.affectedRows} 个用户，重置 ${userResult.affectedRows} 个账号状态`);
+      logger.info('Auto unban completed', {
+        banRecordsUpdated: banResult.affectedRows,
+        usersReactivated: userResult.affectedRows
+      });
     }
   } catch (error) {
-    console.error('自动解封失败:', error);
+    logger.error('Auto unban failed', { error });
   }
 };
 
@@ -55,7 +59,9 @@ const startAutoUnbanService = (interval = 1 * 60 * 1000) => {
   // 定期执行自动解封
   const intervalId = setInterval(autoUnbanUsers, interval);
   
-  console.log(`● 自动解封功能已启用，每 ${Math.floor(interval / (60 * 1000))} 分钟检查一次`);
+  logger.info('Auto unban scheduler started', {
+    intervalMinutes: Math.floor(interval / (60 * 1000))
+  });
   
   return intervalId;
 };

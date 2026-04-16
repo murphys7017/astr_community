@@ -1,6 +1,8 @@
 const { verifyToken, extractTokenFromHeader } = require('../utils/jwt');
 const { pool } = require('../config/config');
 const { HTTP_STATUS, RESPONSE_CODES } = require('../constants');
+const { updateRequestContext } = require('../utils/requestContext');
+const logger = require('../utils/logger').child({ module: 'auth-middleware' });
 
 /**
  * 认证中间件 - 验证JWT token
@@ -54,6 +56,11 @@ async function authenticateToken(req, res, next) {
         adminId: decoded.adminId
       };
       req.token = token;
+      updateRequestContext({
+        userId: decoded.adminId,
+        adminId: decoded.adminId,
+        actorType: 'admin'
+      });
 
       return next();
     } else {
@@ -94,11 +101,15 @@ async function authenticateToken(req, res, next) {
       // 将用户信息添加到请求对象
       req.user = userRows[0];
       req.token = token;
+      updateRequestContext({
+        userId: userRows[0].id,
+        actorType: 'user'
+      });
 
       return next();
     }
   } catch (error) {
-    console.error('Token验证失败:', error);
+    logger.warn('Token validation failed', { error });
     return res.status(HTTP_STATUS.UNAUTHORIZED).json({
       code: RESPONSE_CODES.UNAUTHORIZED,
       message: '无效的访问令牌'
@@ -137,6 +148,10 @@ async function optionalAuth(req, res, next) {
       if (sessionRows.length > 0) {
         req.user = userRows[0];
         req.token = token;
+        updateRequestContext({
+          userId: userRows[0].id,
+          actorType: 'user'
+        });
       } else {
         req.user = null;
       }

@@ -18,6 +18,18 @@ const config = {
     env: process.env.NODE_ENV || 'development'
   },
 
+  // 日志配置
+  logging: {
+    appName: process.env.LOG_APP_NAME || 'astrbot-community-api',
+    level: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'development' ? 'debug' : 'info'),
+    format: process.env.LOG_FORMAT || (process.env.NODE_ENV === 'development' ? 'pretty' : 'json'),
+    request: {
+      ignorePaths: process.env.LOG_IGNORE_PATHS
+        ? process.env.LOG_IGNORE_PATHS.split(',').map(pathItem => pathItem.trim()).filter(Boolean)
+        : ['/api/health']
+    }
+  },
+
   // CORS配置
   cors: {
     origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim()) : ['http://localhost:5173', 'http://localhost:3001']
