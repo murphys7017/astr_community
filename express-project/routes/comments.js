@@ -5,6 +5,7 @@ const { pool } = require('../config/config');
 const { authenticateToken, optionalAuth } = require('../middleware/auth');
 const NotificationHelper = require('../utils/notificationHelper');
 const { sanitizeContent } = require('../utils/contentSecurity');
+const logger = require('../utils/logger').child({ module: 'comments' });
 
 const BLOCKED_MEDIA_TAG_REGEX = /<(img|video|audio|iframe)\b/i;
 
@@ -99,7 +100,7 @@ router.get('/', optionalAuth, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('获取评论列表失败:', error);
+    logger.error('Get comments failed', { error, postId: req.query.post_id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -193,7 +194,12 @@ router.post('/', authenticateToken, async (req, res) => {
     commentData.liked = false; // 新创建的评论默认未点赞
     commentData.reply_count = 0; // 新创建的评论默认无回复
 
-    console.log('创建评论成功 - 用户ID: %s, 评论ID: %s', userId, commentId);
+    logger.info('Comment created', {
+      userId,
+      commentId,
+      postId: post_id,
+      parentId: parent_id || null
+    });
 
     res.json({
       code: RESPONSE_CODES.SUCCESS,
@@ -201,7 +207,12 @@ router.post('/', authenticateToken, async (req, res) => {
       data: commentData
     });
   } catch (error) {
-    console.error('创建评论失败:', error);
+    logger.error('Create comment failed', {
+      error,
+      userId: req.user?.id || null,
+      postId: req.body?.post_id || null,
+      parentId: req.body?.parent_id || null
+    });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -262,7 +273,7 @@ router.get('/:id/replies', optionalAuth, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('获取子评论列表失败:', error);
+    logger.error('Get comment replies failed', { error, parentId: req.params.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -298,7 +309,12 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     // 根据实际删除的评论数量更新笔记的评论计数
     await pool.execute('UPDATE posts SET comment_count = comment_count - ? WHERE id = ?', [deletedCount.toString(), comment.post_id.toString()]);
 
-    console.log('删除评论成功 - 用户ID: %s, 评论ID: %s', userId, commentId);
+    logger.info('Comment deleted', {
+      userId,
+      commentId,
+      deletedCount,
+      postId: comment.post_id
+    });
 
     res.json({
       code: RESPONSE_CODES.SUCCESS,
@@ -309,7 +325,11 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('删除评论失败:', error);
+    logger.error('Delete comment failed', {
+      error,
+      userId: req.user?.id || null,
+      commentId: req.params.id || null
+    });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });

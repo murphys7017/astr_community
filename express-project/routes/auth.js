@@ -10,6 +10,7 @@ const svgCaptcha = require('svg-captcha');
 const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
+const logger = require('../utils/logger').child({ module: 'auth' });
 
 function isValidEmail(email) {
   if (typeof email !== 'string') return false;
@@ -42,6 +43,21 @@ function isValidEmail(email) {
   }
 
   return true;
+}
+
+function maskEmail(email) {
+  if (!email || typeof email !== 'string') {
+    return null;
+  }
+
+  const atIndex = email.indexOf('@');
+  if (atIndex <= 1) {
+    return '***';
+  }
+
+  const local = email.slice(0, atIndex);
+  const domain = email.slice(atIndex + 1);
+  return `${local.slice(0, 2)}***@${domain}`;
 }
 
 // 存储验证码的临时对象
@@ -113,7 +129,7 @@ router.get('/captcha', (req, res) => {
       message: '验证码生成成功'
     });
   } catch (error) {
-    console.error('生成验证码失败:', error);
+    logger.error('Generate captcha failed', { error });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -137,7 +153,7 @@ router.get('/check-user-id', async (req, res) => {
       message: existingUser.length > 0 ? 'AstrBot ID 已存在' : 'AstrBot ID 可用'
     });
   } catch (error) {
-    console.error('检查用户ID失败:', error);
+    logger.error('Check user id failed', { error, userId: req.query.user_id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -197,7 +213,7 @@ router.post('/send-email-code', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('发送邮箱验证码失败:', error);
+    logger.error('Send email verification code failed', { error, email: maskEmail(req.body?.email) });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: '验证码发送失败，请稍后重试' });
   }
 });
@@ -256,7 +272,7 @@ router.post('/bind-email', authenticateToken, async (req, res) => {
       [email, userId.toString()]
     );
 
-    console.log(`用户绑定邮箱成功 - 用户ID: ${userId}, 邮箱: ${email}`);
+    logger.info('User email bound', { userId, email: maskEmail(email) });
 
     res.json({
       code: RESPONSE_CODES.SUCCESS,
@@ -265,7 +281,7 @@ router.post('/bind-email', authenticateToken, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('绑定邮箱失败:', error);
+    logger.error('Bind email failed', { error, userId: req.user?.id || null, email: maskEmail(req.body?.email) });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: '绑定邮箱失败，请稍后重试' });
   }
 });
@@ -329,7 +345,7 @@ router.post('/send-reset-code', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('发送找回密码验证码失败:', error);
+    logger.error('Send reset password code failed', { error, email: maskEmail(req.body?.email) });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: '验证码发送失败，请稍后重试' });
   }
 });
@@ -369,7 +385,7 @@ router.post('/verify-reset-code', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('验证找回密码验证码失败:', error);
+    logger.error('Verify reset password code failed', { error, email: maskEmail(req.body?.email) });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: '验证失败，请稍后重试' });
   }
 });
@@ -417,7 +433,7 @@ router.post('/reset-password', async (req, res) => {
     // 删除已使用的验证码
     emailCodeStore.delete(`reset_${email}`);
 
-    console.log(`用户重置密码成功 - 邮箱: ${email}`);
+    logger.info('User password reset', { email: maskEmail(email) });
 
     res.json({
       code: RESPONSE_CODES.SUCCESS,
@@ -425,7 +441,7 @@ router.post('/reset-password', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('重置密码失败:', error);
+    logger.error('Reset password failed', { error, email: maskEmail(req.body?.email) });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: '重置密码失败，请稍后重试' });
   }
 });
@@ -461,7 +477,7 @@ router.delete('/unbind-email', authenticateToken, async (req, res) => {
       ['', userId.toString()]
     );
 
-    console.log(`用户解除邮箱绑定成功 - 用户ID: ${userId}, 原邮箱: ${currentEmail}`);
+    logger.info('User email unbound', { userId, email: maskEmail(currentEmail) });
 
     res.json({
       code: RESPONSE_CODES.SUCCESS,
@@ -469,7 +485,7 @@ router.delete('/unbind-email', authenticateToken, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('解除邮箱绑定失败:', error);
+    logger.error('Unbind email failed', { error, userId: req.user?.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: '解除邮箱绑定失败，请稍后重试' });
   }
 });
@@ -602,7 +618,7 @@ router.post('/register', async (req, res) => {
       [userId.toString()]
     );
 
-    console.log(`用户注册成功 - 用户ID: ${userId}, AstrBot ID: ${userRows[0].user_id}`);
+    logger.info('User registered', { userId, accountId: userRows[0].user_id });
 
     res.json({
       code: RESPONSE_CODES.SUCCESS,
@@ -617,7 +633,7 @@ router.post('/register', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('用户注册失败:', error);
+    logger.error('User registration failed', { error, accountId: req.body?.user_id || null, email: maskEmail(req.body?.email) });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -695,7 +711,7 @@ router.post('/login', async (req, res) => {
       }
     }
 
-    console.log(`用户登录成功 - 用户ID: ${user.id}, AstrBot ID: ${user.user_id}`);
+    logger.info('User login succeeded', { userId: user.id, accountId: user.user_id });
 
     res.json({
       code: RESPONSE_CODES.SUCCESS,
@@ -710,7 +726,7 @@ router.post('/login', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('用户登录失败:', error);
+    logger.error('User login failed', { error, accountId: req.body?.user_id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -768,7 +784,7 @@ router.post('/refresh', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('刷新令牌失败:', error);
+    logger.error('User token refresh failed', { error });
     res.status(HTTP_STATUS.UNAUTHORIZED).json({ code: RESPONSE_CODES.UNAUTHORIZED, message: '刷新令牌无效' });
   }
 });
@@ -785,14 +801,14 @@ router.post('/logout', authenticateToken, async (req, res) => {
       [userId.toString(), token]
     );
 
-    console.log(`用户退出成功 - 用户ID: ${userId}`);
+    logger.info('User logout succeeded', { userId });
 
     res.json({
       code: RESPONSE_CODES.SUCCESS,
       message: '退出成功'
     });
   } catch (error) {
-    console.error('退出登录失败:', error);
+    logger.error('User logout failed', { error, userId: req.user?.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -851,7 +867,7 @@ router.get('/me', authenticateToken, async (req, res) => {
       data: user
     });
   } catch (error) {
-    console.error('获取用户信息失败:', error);
+    logger.error('Get current user failed', { error, userId: req.user?.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -926,7 +942,7 @@ router.post('/admin/login', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('管理员登录失败:', error);
+    logger.error('Admin login failed', { error, username: req.body?.username || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -956,7 +972,7 @@ router.get('/admin/me', authenticateToken, async (req, res) => {
       data: adminRows[0]
     });
   } catch (error) {
-    console.error('获取管理员信息失败:', error);
+    logger.error('Get admin profile failed', { error, adminId: req.user?.adminId || req.user?.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -1016,7 +1032,7 @@ router.get('/admin/admins', authenticateToken, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('获取管理员列表失败:', error);
+    logger.error('Get admins failed', { error });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -1060,7 +1076,7 @@ router.post('/admin/admins', authenticateToken, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('创建管理员失败:', error);
+    logger.error('Create admin failed', { error, username: req.body?.username || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -1102,7 +1118,7 @@ router.put('/admin/admins/:id', authenticateToken, async (req, res) => {
       message: '更新管理员信息成功'
     });
   } catch (error) {
-    console.error('更新管理员信息失败:', error);
+    logger.error('Update admin failed', { error, adminId: req.params.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -1135,7 +1151,7 @@ router.delete('/admin/admins/:id', authenticateToken, async (req, res) => {
       message: '删除管理员成功'
     });
   } catch (error) {
-    console.error('删除管理员失败:', error);
+    logger.error('Delete admin failed', { error, adminId: req.params.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -1177,7 +1193,7 @@ router.put('/admin/admins/:id/password', authenticateToken, async (req, res) => 
       message: '重置密码成功'
     });
   } catch (error) {
-    console.error('重置密码失败:', error);
+    logger.error('Reset admin password failed', { error, adminId: req.params.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -1240,7 +1256,7 @@ router.post('/admin/refresh', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('刷新令牌失败:', error);
+    logger.error('Admin token refresh failed', { error });
     res.status(HTTP_STATUS.UNAUTHORIZED).json({ code: RESPONSE_CODES.UNAUTHORIZED, message: '刷新令牌无效' });
   }
 });
@@ -1267,7 +1283,7 @@ router.post('/admin/logout', authenticateToken, async (req, res) => {
       message: '登出成功'
     });
   } catch (error) {
-    console.error('管理员登出失败:', error);
+    logger.error('Admin logout failed', { error, adminId: req.user?.adminId || req.user?.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -1315,7 +1331,7 @@ router.get('/github', (req, res) => {
       message: 'success'
     });
   } catch (error) {
-    console.error('获取 GitHub 授权 URL 失败:', error);
+    logger.error('Build GitHub auth url failed', { error });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       code: RESPONSE_CODES.ERROR,
       message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR
@@ -1392,7 +1408,7 @@ router.get('/github/callback', async (req, res) => {
           userEmail = primaryEmail.email;
         }
       } catch (e) {
-        console.error('获取 GitHub 用户邮箱失败:', e.message);
+        logger.warn('Fetch GitHub user email failed', { error: e.message, githubId });
       }
     }
 
@@ -1494,7 +1510,7 @@ router.get('/github/callback', async (req, res) => {
       }
     }
 
-    console.log(`GitHub 登录成功 - 用户ID: ${user.id}, GitHub ID: ${githubId}`);
+    logger.info('GitHub login succeeded', { userId: user.id, githubId });
 
     // 返回 HTML 页面，通过 postMessage 将结果发送给父窗口，并重定向
     const html = `
@@ -1563,7 +1579,7 @@ router.get('/github/callback', async (req, res) => {
     res.send(html);
 
   } catch (error) {
-    console.error('GitHub 回调处理失败:', error.response?.data || error.message);
+    logger.error('GitHub callback failed', { error: error.response?.data || error.message });
     const errorHtml = `
 <!DOCTYPE html>
 <html>

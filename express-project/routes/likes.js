@@ -4,6 +4,7 @@ const { HTTP_STATUS, RESPONSE_CODES, ERROR_MESSAGES } = require('../constants');
 const { pool } = require('../config/config');
 const { authenticateToken } = require('../middleware/auth');
 const NotificationHelper = require('../utils/notificationHelper');
+const logger = require('../utils/logger').child({ module: 'likes' });
 
 // 点赞/取消点赞
 router.post('/', authenticateToken, async (req, res) => {
@@ -49,7 +50,7 @@ router.post('/', authenticateToken, async (req, res) => {
         await pool.execute('UPDATE comments SET like_count = like_count - 1 WHERE id = ?', [String(target_id)]);
       }
 
-      console.log(`取消点赞成功 - 用户ID: ${userId}`);
+      logger.info('Like removed', { userId, targetType: Number(target_type), targetId: Number(target_id) });
       res.json({ code: RESPONSE_CODES.SUCCESS, message: '取消点赞成功', data: { liked: false } });
     } else {
       // 未点赞，执行点赞
@@ -109,11 +110,16 @@ router.post('/', authenticateToken, async (req, res) => {
           await NotificationHelper.insertNotification(pool, notificationData);
         }
       }
-      console.log(`点赞成功 - 用户ID: ${userId}`);
+      logger.info('Like created', { userId, targetType: Number(target_type), targetId: Number(target_id) });
       res.json({ code: RESPONSE_CODES.SUCCESS, message: '点赞成功', data: { liked: true } });
     }
   } catch (error) {
-    console.error('点赞操作失败:', error);
+    logger.error('Toggle like failed', {
+      error,
+      userId: req.user?.id || null,
+      targetType: req.body?.target_type || null,
+      targetId: req.body?.target_id || null
+    });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -154,10 +160,15 @@ router.delete('/', authenticateToken, async (req, res) => {
       await pool.execute('UPDATE comments SET like_count = like_count - 1 WHERE id = ?', [String(target_id)]);
     }
 
-    console.log(`取消点赞成功 - 用户ID: ${userId}`);
+    logger.info('Like removed via legacy endpoint', { userId, targetType: Number(target_type), targetId: Number(target_id) });
     res.json({ code: RESPONSE_CODES.SUCCESS, message: '取消点赞成功' });
   } catch (error) {
-    console.error('取消点赞失败:', error);
+    logger.error('Delete like failed', {
+      error,
+      userId: req.user?.id || null,
+      targetType: req.body?.target_type || null,
+      targetId: req.body?.target_id || null
+    });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });

@@ -5,6 +5,8 @@ const { pool } = require('../config/config');
 const { optionalAuth, authenticateToken } = require('../middleware/auth');
 const NotificationHelper = require('../utils/notificationHelper');
 const { sanitizeContent } = require('../utils/contentSecurity');
+const { pickTextPostCoverUrl } = require('../utils/postCover');
+const logger = require('../utils/logger').child({ module: 'users' });
 
 // 搜索用户（必须放在 /:id 之前）
 router.get('/search', optionalAuth, async (req, res) => {
@@ -92,7 +94,7 @@ router.get('/search', optionalAuth, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('搜索用户失败:', error);
+    logger.error('Search users failed', { error, keyword: req.query.keyword || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -109,7 +111,7 @@ router.get('/:id/personality-tags', async (req, res) => {
     const [rows] = await pool.execute(query, params);
 
     if (rows.length === 0) {
-      console.log('❌ 用户不存在:', userIdParam);
+      logger.warn('Personality tags requested for missing user', { userIdParam });
       return res.status(HTTP_STATUS.NOT_FOUND).json({
         code: RESPONSE_CODES.NOT_FOUND,
         message: '用户不存在',
@@ -136,7 +138,7 @@ router.get('/:id/personality-tags', async (req, res) => {
       data: personalityTags
     });
   } catch (error) {
-    console.error('获取用户个性标签失败:', error);
+    logger.error('Get user personality tags failed', { error, userIdParam: req.params.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -154,7 +156,7 @@ router.get('/:id', async (req, res) => {
     );
 
     if (rows.length === 0) {
-      console.log('❌ 用户不存在:', userIdParam);
+      logger.warn('User detail requested for missing user', { userIdParam });
       return res.status(HTTP_STATUS.NOT_FOUND).json({
         code: RESPONSE_CODES.NOT_FOUND,
         message: '用户不存在',
@@ -199,7 +201,7 @@ router.get('/:id', async (req, res) => {
       data: user
     });
   } catch (error) {
-    console.error('获取用户信息失败:', error);
+    logger.error('Get user detail failed', { error, userIdParam: req.params.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -233,7 +235,7 @@ router.get('/', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('获取用户列表失败:', error);
+    logger.error('Get users failed', { error });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -316,7 +318,7 @@ router.get('/:id/posts', optionalAuth, async (req, res) => {
         const [images] = await pool.execute('SELECT image_url FROM post_images WHERE post_id = ?', [post.id.toString()]);
         post.images = images.map(img => img.image_url);
         // 为瀑布流设置image字段（取第一张图片）
-        post.image = images.length > 0 ? images[0].image_url : null;
+        post.image = pickTextPostCoverUrl(post.cover_url, post.images);
       }
 
       // 获取笔记标签
@@ -367,7 +369,7 @@ router.get('/:id/posts', optionalAuth, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('获取用户笔记列表失败:', error);
+    logger.error('Get user posts failed', { error, userIdParam: req.params.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -414,7 +416,7 @@ router.get('/:id/collections', optionalAuth, async (req, res) => {
         const [images] = await pool.execute('SELECT image_url FROM post_images WHERE post_id = ?', [post.id.toString()]);
         post.images = images.map(img => img.image_url);
         // 为瀑布流设置image字段（取第一张图片）
-        post.image = images.length > 0 ? images[0].image_url : null;
+        post.image = pickTextPostCoverUrl(post.cover_url, post.images);
       }
 
       // 获取笔记标签
@@ -463,7 +465,7 @@ router.get('/:id/collections', optionalAuth, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('获取收藏列表失败:', error);
+    logger.error('Get user collections failed', { error, userIdParam: req.params.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -511,7 +513,7 @@ router.get('/:id/likes', optionalAuth, async (req, res) => {
         const [images] = await pool.execute('SELECT image_url FROM post_images WHERE post_id = ?', [post.id.toString()]);
         post.images = images.map(img => img.image_url);
         // 为瀑布流设置image字段（取第一张图片）
-        post.image = images.length > 0 ? images[0].image_url : null;
+        post.image = pickTextPostCoverUrl(post.cover_url, post.images);
       }
 
       // 获取笔记标签
@@ -560,7 +562,7 @@ router.get('/:id/likes', optionalAuth, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('获取点赞列表失败:', error);
+    logger.error('Get user likes failed', { error, userIdParam: req.params.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -611,13 +613,13 @@ router.post('/:id/follow', authenticateToken, async (req, res) => {
       const notificationData = NotificationHelper.createFollowNotification(userId, followerId);
       await NotificationHelper.insertNotification(pool, notificationData);
     } catch (notificationError) {
-      console.error('关注通知创建失败:', notificationError);
+      logger.error('Create follow notification failed', { error: notificationError, userId, followerId });
     }
 
-    console.log(`关注成功 - 用户ID: ${followerId}, 目标用户ID: ${userId}`);
+    logger.info('User followed', { followerId, userId });
     res.json({ code: RESPONSE_CODES.SUCCESS, message: '关注成功' });
   } catch (error) {
-    console.error('关注失败:', error);
+    logger.error('Follow user failed', { error, followerId: req.user?.id || null, userIdParam: req.params.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -658,11 +660,10 @@ router.delete('/:id/follow', authenticateToken, async (req, res) => {
       [userId.toString(), followerId.toString(), NotificationHelper.TYPES.FOLLOW.toString()]
     );
 
-    console.log(`取消关注成功 - 用户ID: ${followerId}, 目标用户ID: ${userId}`);
-    console.log(`已删除相关关注通知 - 接收者: ${userId}, 发送者: ${followerId}`);
+    logger.info('User unfollowed', { followerId, userId });
     res.json({ code: RESPONSE_CODES.SUCCESS, message: '取消关注成功' });
   } catch (error) {
-    console.error('取消关注失败:', error);
+    logger.error('Unfollow user failed', { error, followerId: req.user?.id || null, userIdParam: req.params.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -725,7 +726,7 @@ router.get('/:id/follow-status', optionalAuth, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('获取关注状态失败:', error);
+    logger.error('Get follow status failed', { error, userIdParam: req.params.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -819,7 +820,7 @@ router.get('/:id/following', optionalAuth, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('获取关注列表失败:', error);
+    logger.error('Get following list failed', { error, userIdParam: req.params.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -833,7 +834,7 @@ router.get('/:id/followers', optionalAuth, async (req, res) => {
     const offset = (page - 1) * limit;
     const currentUserId = req.user ? req.user.id : null;
 
-    console.log(`获取粉丝列表 - 用户ID: ${userIdParam}, 当前用户ID: ${currentUserId}`);
+    logger.debug('Get followers requested', { userIdParam, currentUserId, page, limit });
 
     // 始终通过 AstrBot ID查找对应的数字ID
     const [userRows] = await pool.execute('SELECT id FROM users WHERE user_id = ?', [userIdParam]);
@@ -909,7 +910,7 @@ router.get('/:id/followers', optionalAuth, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('获取粉丝列表失败:', error);
+    logger.error('Get followers failed', { error, userIdParam: req.params.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -923,7 +924,7 @@ router.get('/:id/mutual-follows', optionalAuth, async (req, res) => {
     const offset = (page - 1) * limit;
     const currentUserId = req.user ? req.user.id : null;
 
-    console.log(`获取互关列表 - 用户ID: ${userIdParam}, 当前用户ID: ${currentUserId}`);
+    logger.debug('Get mutual follows requested', { userIdParam, currentUserId, page, limit });
 
     // 始终通过 AstrBot ID查找对应的数字ID
     const [userRows] = await pool.execute('SELECT id FROM users WHERE user_id = ?', [userIdParam]);
@@ -1021,7 +1022,7 @@ router.get('/:id/mutual-follows', optionalAuth, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('获取互关列表失败:', error);
+    logger.error('Get mutual follows failed', { error, userIdParam: req.params.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -1030,7 +1031,7 @@ router.get('/:id/mutual-follows', optionalAuth, async (req, res) => {
 router.get('/:id/stats', async (req, res) => {
   try {
     const userIdParam = req.params.id;
-    console.log(`获取用户统计信息 - 用户ID: ${userIdParam}`);
+    logger.debug('Get user stats requested', { userIdParam });
 
     // 通过 AstrBot ID查找对应的数字ID
     const [userRows] = await pool.execute('SELECT id FROM users WHERE user_id = ?', [userIdParam]);
@@ -1080,7 +1081,7 @@ router.get('/:id/stats', async (req, res) => {
       data: stats
     });
   } catch (error) {
-    console.error('获取用户统计信息失败:', error);
+    logger.error('Get user stats failed', { error, userIdParam: req.params.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -1092,7 +1093,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     const currentUserId = req.user.id;
     const { nickname, avatar, bio, location, gender, zodiac_sign, mbti, education, major, interests } = req.body;
 
-    console.log(`用户更新资料 - 目标用户ID: ${userIdParam}, 当前用户ID: ${currentUserId}`);
+    logger.info('User profile update requested', { userIdParam, currentUserId });
 
     // 始终通过 AstrBot ID查找对应的数字ID
     const [userRows] = await pool.execute('SELECT id FROM users WHERE user_id = ?', [userIdParam]);
@@ -1188,7 +1189,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
       data: updatedUser[0]
     });
   } catch (error) {
-    console.error('更新用户资料失败:', error);
+    logger.error('Update user profile failed', { error, userIdParam: req.params.id || null, currentUserId: req.user?.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -1200,7 +1201,7 @@ router.put('/:id/password', authenticateToken, async (req, res) => {
     const currentUserId = req.user.id;
     const { currentPassword, newPassword } = req.body;
 
-    console.log(`用户修改密码 - 目标用户ID: ${userIdParam}, 当前用户ID: ${currentUserId}`);
+    logger.info('User password change requested', { userIdParam, currentUserId });
 
     // 验证必填字段
     if (!currentPassword || !newPassword) {
@@ -1245,7 +1246,7 @@ router.put('/:id/password', authenticateToken, async (req, res) => {
       success: true
     });
   } catch (error) {
-    console.error('修改密码失败:', error);
+    logger.error('Change user password failed', { error, userIdParam: req.params.id || null, currentUserId: req.user?.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -1289,7 +1290,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
   } catch (error) {
     // 回滚事务
     await connection.rollback();
-    console.error('删除账号失败:', error);
+    logger.error('Delete user account failed', { error, userIdParam: req.params.id || null, currentUserId: req.user?.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   } finally {
     connection.release();
@@ -1369,7 +1370,7 @@ router.post('/verification', authenticateToken, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('提交认证申请错误:', error);
+    logger.error('Submit verification request failed', { error, userId: req.user?.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       code: RESPONSE_CODES.SERVER_ERROR,
       message: ERROR_MESSAGES.SERVER_ERROR
@@ -1394,7 +1395,7 @@ router.get('/verification/status', authenticateToken, async (req, res) => {
       data: verifications
     });
   } catch (error) {
-    console.error('获取认证状态错误:', error);
+    logger.error('Get verification status failed', { error, userId: req.user?.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       code: RESPONSE_CODES.SERVER_ERROR,
       message: ERROR_MESSAGES.SERVER_ERROR
@@ -1443,7 +1444,7 @@ router.delete('/verification/revoke', authenticateToken, async (req, res) => {
       message: '认证申请已撤回'
     });
   } catch (error) {
-    console.error('撤回认证申请错误:', error);
+    logger.error('Withdraw verification request failed', { error, userId: req.user?.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       code: RESPONSE_CODES.SERVER_ERROR,
       message: ERROR_MESSAGES.SERVER_ERROR

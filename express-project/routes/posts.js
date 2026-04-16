@@ -6,22 +6,51 @@ const { optionalAuth, authenticateToken } = require('../middleware/auth');
 const NotificationHelper = require('../utils/notificationHelper');
 const { batchCleanupFiles } = require('../utils/fileCleanup');
 const { sanitizeContent } = require('../utils/contentSecurity');
+const { parseExternalCoverUrl, pickTextPostCoverUrl } = require('../utils/postCover');
+const logger = require('../utils/logger').child({ module: 'posts' });
 
 const BLOCKED_MEDIA_TAG_REGEX = /<(img|video|audio|iframe)\b/i;
 
 const hasEmbeddedMediaMarkup = (content = '') => BLOCKED_MEDIA_TAG_REGEX.test(content);
 
 const hasUploadedMediaPayload = (payload = {}) => {
-  const { images, video, type, video_url, cover_url } = payload;
+  const { images, video, type, video_url } = payload;
   const hasImages = Array.isArray(images) && images.some(imageUrl => typeof imageUrl === 'string' && imageUrl.trim());
   const hasVideoObject = video && typeof video === 'object' &&
     Object.values(video).some(value => typeof value === 'string' ? value.trim() : Boolean(value));
   const hasVideoString = typeof video === 'string' && video.trim();
   const hasSeparateVideoField = typeof video_url === 'string' && video_url.trim();
-  const hasSeparateCoverField = typeof cover_url === 'string' && cover_url.trim();
   const isVideoType = Number(type) === 2;
 
-  return hasImages || hasVideoObject || hasVideoString || hasSeparateVideoField || hasSeparateCoverField || isVideoType;
+  return hasImages || hasVideoObject || hasVideoString || hasSeparateVideoField || isVideoType;
+};
+
+const RECOMMENDATION_SMALL_SITE_THRESHOLD = 12;
+const RECOMMENDATION_MIN_POOL_SIZE = 12;
+const RECOMMENDATION_POOL_RATIO = 0.35;
+const RECOMMENDATION_SCORE_SQL = `
+  (
+    LOG10(p.view_count + 1) * 1.5 +
+    p.like_count * 3 +
+    p.comment_count * 4 +
+    p.collect_count * 5 +
+    GREATEST(0, 72 - LEAST(TIMESTAMPDIFF(HOUR, p.created_at, NOW()), 72)) * 0.15
+  )
+`;
+
+const getRecommendPoolSize = (totalPosts) => {
+  if (totalPosts <= 0) {
+    return 0;
+  }
+
+  if (totalPosts <= RECOMMENDATION_SMALL_SITE_THRESHOLD) {
+    return totalPosts;
+  }
+
+  return Math.min(
+    totalPosts,
+    Math.max(RECOMMENDATION_MIN_POOL_SIZE, Math.ceil(totalPosts * RECOMMENDATION_POOL_RATIO))
+  );
 };
 
 // 获取笔记列表
@@ -82,7 +111,7 @@ router.get('/', optionalAuth, async (req, res) => {
           const [images] = await pool.execute('SELECT image_url FROM post_images WHERE post_id = ?', [post.id]);
           post.images = images.map(img => img.image_url);
           // 为瀑布流设置image字段（取第一张图片）
-          post.image = images.length > 0 ? images[0].image_url : null;
+          post.image = pickTextPostCoverUrl(post.cover_url, post.images);
         }
 
         // 获取笔记标签
@@ -131,9 +160,9 @@ router.get('/', optionalAuth, async (req, res) => {
     `;
     let queryParams = [status.toString()];
 
-    // 特殊处理推荐频道：热度新鲜度评分前20%的笔记按分数排序
+    // 推荐频道：小站阶段放开更多内容，大站阶段按综合热度池排序
     if (category === 'recommend') {
-      // 先获取总笔记数计算20%的数量
+      // 先获取总笔记数，再决定推荐池大小
       let countQuery = 'SELECT COUNT(*) as total FROM posts WHERE status = ?';
       let countParams = [status.toString()];
 
@@ -143,8 +172,8 @@ router.get('/', optionalAuth, async (req, res) => {
       }
       const [totalCountResult] = await pool.execute(countQuery, countParams);
       const totalPosts = totalCountResult[0].total;
-      const recommendLimit = Math.ceil(totalPosts * 0.2);
-      // 推荐算法：70%热度+30%新鲜度评分，新发布24小时内的笔记获得新鲜度加分，筛选前20%按分数排序
+      const recommendLimit = getRecommendPoolSize(totalPosts);
+      // 推荐算法：互动质量为主，新鲜度兜底，浏览量仅提供轻量加权
       let innerWhere = 'p.status = ?';
       let innerParams = [status.toString()];
       if (type) {
@@ -164,7 +193,7 @@ router.get('/', optionalAuth, async (req, res) => {
         FROM (
           SELECT 
             p.*,
-            (p.view_count * 0.7 + (24 - LEAST(TIMESTAMPDIFF(HOUR, p.created_at, NOW()), 24)) * 0.3) as score
+            ${RECOMMENDATION_SCORE_SQL} as score
           FROM posts p 
           WHERE ${innerWhere}
           ORDER BY score DESC
@@ -227,7 +256,7 @@ router.get('/', optionalAuth, async (req, res) => {
         const [images] = await pool.execute('SELECT image_url FROM post_images WHERE post_id = ?', [post.id]);
         post.images = images.map(img => img.image_url);
         // 为瀑布流设置image字段（取第一张图片）
-        post.image = images.length > 0 ? images[0].image_url : null;
+        post.image = pickTextPostCoverUrl(post.cover_url, post.images);
       }
 
       // 获取笔记标签
@@ -260,7 +289,7 @@ router.get('/', optionalAuth, async (req, res) => {
     // 获取总数
     let total;
     if (category === 'recommend') {
-      // 推荐频道的总数限制为总笔记数的20%
+      // 推荐频道的总数等于推荐池大小，而不是简单的 20%
       let countQuery = 'SELECT COUNT(*) as total FROM posts WHERE status = ?';
       let countParams = [status.toString()];
 
@@ -271,7 +300,7 @@ router.get('/', optionalAuth, async (req, res) => {
 
       const [totalCountResult] = await pool.execute(countQuery, countParams);
       const totalPosts = totalCountResult[0].total;
-      total = Math.ceil(totalPosts * 0.2);
+      total = getRecommendPoolSize(totalPosts);
     } else {
       let countQuery = 'SELECT COUNT(*) as total FROM posts WHERE status = ?';
       let countParams = [status.toString()];
@@ -315,7 +344,7 @@ router.get('/', optionalAuth, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('获取笔记列表失败:', error);
+    logger.error('Get posts failed', { error });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -357,6 +386,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
       // 图文类型：获取图片
       const [images] = await pool.execute('SELECT image_url FROM post_images WHERE post_id = ?', [postId]);
       post.images = images.map(img => img.image_url);
+      post.image = pickTextPostCoverUrl(post.cover_url, post.images);
     } else if (post.type === 2) {
       // 视频类型：获取视频
       const [videos] = await pool.execute('SELECT video_url, cover_url FROM post_videos WHERE post_id = ?', [postId]);
@@ -409,7 +439,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
       data: post
     });
   } catch (error) {
-    console.error('获取笔记详情失败:', error);
+    logger.error('Get post detail failed', { error, postId: req.params.id });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -417,24 +447,31 @@ router.get('/:id', optionalAuth, async (req, res) => {
 // 创建笔记
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    const { title, content, category_id, images, video, tags, status, type } = req.body;
+    const { title, content, category_id, images, video, cover_url, tags, status, type } = req.body;
     const userId = req.user.id;
     const postType = 1;
+    const normalizedCoverUrl = parseExternalCoverUrl(cover_url);
 
-    console.log('=== 创建笔记请求 ===');
-    console.log('用户ID:', userId);
-    console.log('标题:', title);
-    console.log('内容长度:', content ? content.length : 0);
-    console.log('分类ID:', category_id);
-    console.log('发布类型:', postType);
-    console.log('笔记状态:', status);
-    console.log('图片数量:', images ? images.length : 0);
-    console.log('视频数据:', video ? JSON.stringify(video) : 'null');
-    console.log('标签:', tags);
+    logger.info('Post creation requested', {
+      userId,
+      categoryId: category_id || null,
+      postType,
+      status: status !== undefined ? status : 0,
+      titleLength: title ? title.length : 0,
+      contentLength: content ? content.length : 0,
+      tagCount: Array.isArray(tags) ? tags.length : 0,
+      hasCoverUrl: Boolean(normalizedCoverUrl.value),
+      hasUploadedMedia: hasUploadedMediaPayload({ images, video, type })
+    });
 
     // 验证必填字段：发布时要求标题和内容，草稿时不强制要求
     if (status !== 1 && (!title || !content)) {
-      console.log('❌ 验证失败: 标题或内容为空');
+      logger.warn('Post creation rejected: missing required fields', {
+        userId,
+        status: status !== undefined ? status : 0,
+        hasTitle: Boolean(title),
+        hasContent: Boolean(content)
+      });
       return res.status(HTTP_STATUS.BAD_REQUEST).json({ code: RESPONSE_CODES.VALIDATION_ERROR, message: '发布时标题和内容不能为空' });
     }
 
@@ -442,15 +479,23 @@ router.post('/', authenticateToken, async (req, res) => {
     const sanitizedContent = content ? sanitizeContent(content) : '';
 
     if (hasEmbeddedMediaMarkup(sanitizedContent)) {
-      console.log('❌ 验证失败: 内容包含媒体标签');
+      logger.warn('Post creation rejected: embedded media markup blocked', { userId });
       return res.status(HTTP_STATUS.BAD_REQUEST).json({
         code: RESPONSE_CODES.VALIDATION_ERROR,
         message: '帖子内容暂不支持图片或媒体嵌入，请改用外链'
       });
     }
 
+    if (!normalizedCoverUrl.valid) {
+      logger.warn('Post creation rejected: invalid cover url', { userId, coverUrl: cover_url || null });
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        code: RESPONSE_CODES.VALIDATION_ERROR,
+        message: '封面链接格式不正确，请使用 http/https 链接'
+      });
+    }
+
     if (hasUploadedMediaPayload({ images, video, type })) {
-      console.log('❌ 验证失败: 文本社区模式下不支持上传图片或视频');
+      logger.warn('Post creation rejected: uploaded media not allowed', { userId });
       return res.status(HTTP_STATUS.BAD_REQUEST).json({
         code: RESPONSE_CODES.VALIDATION_ERROR,
         message: '平台当前仅支持纯文本发帖，图片和视频请改用外链'
@@ -458,14 +503,12 @@ router.post('/', authenticateToken, async (req, res) => {
     }
 
     // 插入笔记
-    console.log('📝 开始插入笔记到数据库...');
     const [result] = await pool.execute(
-      'INSERT INTO posts (user_id, title, content, category_id, status, type) VALUES (?, ?, ?, ?, ?, ?)',
-      [userId, title || '', sanitizedContent, category_id || null, (status !== undefined ? status : 0).toString(), postType]
+      'INSERT INTO posts (user_id, title, content, cover_url, category_id, status, type) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [userId, title || '', sanitizedContent, normalizedCoverUrl.value, category_id || null, (status !== undefined ? status : 0).toString(), postType]
     );
 
     const postId = result.insertId;
-    console.log('✅ 笔记插入成功，ID:', postId);
 
     // 处理标签
     if (tags && tags.length > 0) {
@@ -489,7 +532,14 @@ router.post('/', authenticateToken, async (req, res) => {
       }
     }
 
-    console.log(`✅ 创建笔记成功 - 用户ID: ${userId}, 笔记ID: ${postId}, 类型: ${postType}`);
+    logger.info('Post created', {
+      userId,
+      postId,
+      postType,
+      status: status !== undefined ? status : 0,
+      tagCount: Array.isArray(tags) ? tags.length : 0,
+      hasCoverUrl: Boolean(normalizedCoverUrl.value)
+    });
 
     // 如果笔记状态为待审核(status=2)，在audit表中添加审核记录
     if (status === 2) {
@@ -498,9 +548,9 @@ router.post('/', authenticateToken, async (req, res) => {
           'INSERT INTO audit (type, target_id, status) VALUES (?, ?, ?)',
           [3, postId, 0]
         );
-        console.log(`✅ 审核记录创建成功 - 笔记ID: ${postId}`);
+        logger.info('Post audit record created', { postId });
       } catch (error) {
-        console.error('❌ 创建审核记录失败:', error);
+        logger.error('Create post audit record failed', { error, postId });
       }
     }
 
@@ -510,7 +560,7 @@ router.post('/', authenticateToken, async (req, res) => {
       data: { id: postId }
     });
   } catch (error) {
-    console.error('❌ 创建笔记失败:', error);
+    logger.error('Create post failed', { error, userId: req.user?.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -528,7 +578,12 @@ router.get('/search', optionalAuth, async (req, res) => {
       return res.status(HTTP_STATUS.BAD_REQUEST).json({ code: RESPONSE_CODES.VALIDATION_ERROR, message: '请输入搜索关键词' });
     }
 
-    console.log(`🔍 搜索笔记 - 关键词: ${keyword}, 页码: ${page}, 每页: ${limit}, 当前用户ID: ${currentUserId}`);
+    logger.debug('Post search requested', {
+      keyword,
+      page,
+      limit,
+      currentUserId
+    });
 
     // 搜索笔记：支持标题和内容搜索（只搜索已通过的笔记）
     const [rows] = await pool.execute(
@@ -546,6 +601,7 @@ router.get('/search', optionalAuth, async (req, res) => {
       // 获取笔记图片
       const [images] = await pool.execute('SELECT image_url FROM post_images WHERE post_id = ?', [post.id]);
       post.images = images.map(img => img.image_url);
+      post.image = pickTextPostCoverUrl(post.cover_url, post.images);
 
       // 获取笔记标签
       const [tags] = await pool.execute(
@@ -581,7 +637,14 @@ router.get('/search', optionalAuth, async (req, res) => {
     );
     const total = countResult[0].total;
 
-    console.log(`  搜索笔记结果 - 找到 ${total} 个笔记，当前页 ${rows.length} 个`);
+    logger.info('Post search completed', {
+      keyword,
+      page,
+      limit,
+      currentUserId,
+      total,
+      resultCount: rows.length
+    });
 
     res.json({
       code: RESPONSE_CODES.SUCCESS,
@@ -598,7 +661,7 @@ router.get('/search', optionalAuth, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('搜索笔记失败:', error);
+    logger.error('Search posts failed', { error, keyword: req.query.keyword || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -613,7 +676,13 @@ router.get('/:id/comments', optionalAuth, async (req, res) => {
     const sort = req.query.sort || 'desc'; // 排序方式：desc（降序）或 asc（升序）
     const currentUserId = req.user ? req.user.id : null;
 
-    console.log(`获取笔记评论列表 - 笔记ID: ${postId}, 页码: ${page}, 每页: ${limit}, 排序: ${sort}, 当前用户ID: ${currentUserId}`);
+    logger.debug('Get post comments requested', {
+      postId,
+      page,
+      limit,
+      sort,
+      currentUserId
+    });
 
     // 验证笔记是否存在
     const [postRows] = await pool.execute('SELECT id FROM posts WHERE id = ?', [postId.toString()]);
@@ -675,7 +744,7 @@ router.get('/:id/comments', optionalAuth, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('获取笔记评论列表失败:', error);
+    logger.error('Get post comments failed', { error, postId: req.params.id || req.query.post_id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -710,7 +779,7 @@ router.post('/:id/collect', authenticateToken, async (req, res) => {
       // 更新笔记收藏数
       await pool.execute('UPDATE posts SET collect_count = collect_count - 1 WHERE id = ?', [postId.toString()]);
 
-      console.log(`取消收藏成功 - 用户ID: ${userId}, 笔记ID: ${postId}`);
+      logger.info('Post collection removed', { userId, postId });
       res.json({ code: RESPONSE_CODES.SUCCESS, message: '取消收藏成功', data: { collected: false } });
     } else {
       // 未收藏，执行收藏
@@ -734,11 +803,11 @@ router.post('/:id/collect', authenticateToken, async (req, res) => {
         }
       }
 
-      console.log(`收藏成功 - 用户ID: ${userId}, 笔记ID: ${postId}`);
+      logger.info('Post collected', { userId, postId });
       res.json({ code: RESPONSE_CODES.SUCCESS, message: '收藏成功', data: { collected: true } });
     }
   } catch (error) {
-    console.error('笔记收藏操作失败:', error);
+    logger.error('Toggle post collection failed', { error, postId: req.params.id, userId: req.user?.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -749,10 +818,18 @@ router.put('/:id', authenticateToken, async (req, res) => {
     const postId = req.params.id;
     const { title, content, category_id, images, video, video_url, cover_url, tags, status, type } = req.body;
     const userId = req.user.id;
+    const normalizedCoverUrl = parseExternalCoverUrl(cover_url);
 
     // 验证必填字段：如果不是草稿（status=2），则要求标题、内容和分类不能为空
     if (status !== 1 && (!title || !content || !category_id)) {
-      console.log('验证失败 - 必填字段缺失:', { title, content, category_id, status });
+      logger.warn('Post update rejected: missing required fields', {
+        userId,
+        postId,
+        status: status !== undefined ? status : 0,
+        hasTitle: Boolean(title),
+        hasContent: Boolean(content),
+        hasCategoryId: Boolean(category_id)
+      });
       return res.status(HTTP_STATUS.BAD_REQUEST).json({ code: RESPONSE_CODES.VALIDATION_ERROR, message: '发布时标题、内容和分类不能为空' });
     }
     const sanitizedContent = content ? sanitizeContent(content) : '';
@@ -761,6 +838,13 @@ router.put('/:id', authenticateToken, async (req, res) => {
       return res.status(HTTP_STATUS.BAD_REQUEST).json({
         code: RESPONSE_CODES.VALIDATION_ERROR,
         message: '帖子内容暂不支持图片或媒体嵌入，请改用外链'
+      });
+    }
+
+    if (!normalizedCoverUrl.valid) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        code: RESPONSE_CODES.VALIDATION_ERROR,
+        message: '封面链接格式不正确，请使用 http/https 链接'
       });
     }
 
@@ -778,7 +862,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
       return res.status(HTTP_STATUS.FORBIDDEN).json({ code: RESPONSE_CODES.FORBIDDEN, message: '无权限修改此笔记' });
     }
 
-    if (hasUploadedMediaPayload({ images, video, type, video_url, cover_url })) {
+    if (hasUploadedMediaPayload({ images, video, type, video_url })) {
       return res.status(HTTP_STATUS.BAD_REQUEST).json({
         code: RESPONSE_CODES.VALIDATION_ERROR,
         message: '平台当前仅支持纯文本帖子，暂不支持修改图片或视频内容'
@@ -792,8 +876,8 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
     // 更新笔记基本信息
     await pool.execute(
-      'UPDATE posts SET title = ?, content = ?, category_id = ?, status = ? WHERE id = ?',
-      [title || '', sanitizedContent, category_id || null, (status !== undefined ? status : 0).toString(), postId.toString()]
+      'UPDATE posts SET title = ?, content = ?, cover_url = ?, category_id = ?, status = ? WHERE id = ?',
+      [title || '', sanitizedContent, normalizedCoverUrl.value, category_id || null, (status !== undefined ? status : 0).toString(), postId.toString()]
     );
 
     // 文本社区模式下不再处理帖子媒体更新，历史媒体内容保持原样
@@ -850,7 +934,13 @@ router.put('/:id', authenticateToken, async (req, res) => {
       }
     }
 
-    console.log(`更新笔记成功 - 用户ID: ${userId}, 笔记ID: ${postId}`);
+    logger.info('Post updated', {
+      userId,
+      postId,
+      status: status !== undefined ? status : 0,
+      tagCount: Array.isArray(newTags) ? newTags.length : 0,
+      hasCoverUrl: Boolean(normalizedCoverUrl.value)
+    });
 
     res.json({
       code: RESPONSE_CODES.SUCCESS,
@@ -858,7 +948,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
       data: { id: postId }
     });
   } catch (error) {
-    console.error('更新笔记失败:', error);
+    logger.error('Update post failed', { error, postId: req.params.id, userId: req.user?.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -913,21 +1003,21 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 
       // 异步清理文件，不阻塞响应
       batchCleanupFiles(videoUrls, coverUrls).catch(error => {
-        console.error('清理笔记关联视频文件失败:', error);
+        logger.error('Cleanup post media files failed', { error, postId });
       });
     }
 
     // 最后删除笔记
     await pool.execute('DELETE FROM posts WHERE id = ?', [postId.toString()]);
 
-    console.log(`删除笔记成功 - 用户ID: ${userId}, 笔记ID: ${postId}`);
+    logger.info('Post deleted', { userId, postId });
 
     res.json({
       code: RESPONSE_CODES.SUCCESS,
       message: '删除成功'
     });
   } catch (error) {
-    console.error('删除笔记失败:', error);
+    logger.error('Delete post failed', { error, postId: req.params.id, userId: req.user?.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
@@ -937,8 +1027,6 @@ router.delete('/:id/collect', authenticateToken, async (req, res) => {
   try {
     const postId = req.params.id;
     const userId = req.user.id;
-
-    console.log(`取消收藏 - 用户ID: ${userId}, 笔记ID: ${postId}`);
 
     // 删除收藏记录
     const [result] = await pool.execute(
@@ -953,10 +1041,10 @@ router.delete('/:id/collect', authenticateToken, async (req, res) => {
     // 更新笔记收藏数
     await pool.execute('UPDATE posts SET collect_count = collect_count - 1 WHERE id = ?', [postId.toString()]);
 
-    console.log(`取消收藏成功 - 用户ID: ${userId}, 笔记ID: ${postId}`);
+    logger.info('Post collection removed via legacy endpoint', { userId, postId });
     res.json({ code: RESPONSE_CODES.SUCCESS, message: '取消收藏成功', data: { collected: false } });
   } catch (error) {
-    console.error('取消笔记收藏失败:', error);
+    logger.error('Delete post collection failed', { error, postId: req.params.id, userId: req.user?.id || null });
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ code: RESPONSE_CODES.ERROR, message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR });
   }
 });
